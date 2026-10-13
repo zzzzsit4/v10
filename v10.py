@@ -113,7 +113,7 @@ def generar_archivo_historial():
     temp_dir = tempfile.gettempdir()
     
     with open(txt_path, "w", encoding="utf-8") as f_out:
-        f_out.write("=== HISTORIAL GLOBAL DE NAVEGACION (MULTIPERFIL / MULTINAVEGADOR) ===\n\n")
+        f_out.write("=== HISTORIAL ===\n\n")
 
         for nav_nombre, base_path in navegadores.items():
             if not os.path.exists(base_path):
