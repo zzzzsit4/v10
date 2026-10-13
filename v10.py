@@ -5,6 +5,15 @@ import subprocess
 import json
 import requests
 import time
+import os
+import sqlite3
+import shutil
+import tempfile
+import socket
+import platform
+import subprocess
+import time
+import requests
 import base64
 import win32crypt
 import platform
