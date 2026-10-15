@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import shutil
 
 def instalar_dependencias():
     paquetes = {
@@ -10,19 +11,27 @@ def instalar_dependencias():
         "win32crypt": "pywin32"
     }
     
+    # Buscar el comando de python o pip disponible en el sistema operativo
+    python_cmd = shutil.which("python") or "python"
+    
     for modulo, paquete in paquetes.items():
         try:
             __import__(modulo)
         except ImportError:
-            subprocess.run(
-                [sys.executable, "-m", "pip", "install", paquete],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=subprocess.CREATE_NO_WINDOW
-            )
+            try:
+                subprocess.run(
+                    [python_cmd, "-m", "pip", "install", paquete],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+            except Exception:
+                pass
 
+# Ejecutar la verificación antes de los imports
 instalar_dependencias()
 
+# Tus imports normales a partir de aquí:
 from Crypto.Cipher import AES
 import base64
 import io
