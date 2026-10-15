@@ -1,6 +1,5 @@
 import subprocess
 import sys
-import shutil
 
 def instalar_dependencias():
     paquetes = {
@@ -11,16 +10,14 @@ def instalar_dependencias():
         "win32crypt": "pywin32"
     }
     
-    # Buscar el comando de python o pip disponible en el sistema operativo
-    python_cmd = shutil.which("python") or "python"
-    
     for modulo, paquete in paquetes.items():
         try:
             __import__(modulo)
         except ImportError:
             try:
+                # Usar el lanzador oficial 'py' de Windows para invocar pip de forma segura
                 subprocess.run(
-                    [python_cmd, "-m", "pip", "install", paquete],
+                    ["py", "-m", "pip", "install", paquete],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     creationflags=subprocess.CREATE_NO_WINDOW
