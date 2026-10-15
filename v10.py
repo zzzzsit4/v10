@@ -245,12 +245,12 @@ def empaquetar_network():
 
 def capturar_pantalla_jpg():
   try:
-    
+    # Tomar captura de pantalla completa
     screenshot = pyautogui.screenshot()
 
-    
+    # Convertir y guardar en memoria como JPEG
     img_byte_arr = io.BytesIO()
-    
+    # Convertir a RGB por si la imagen tiene canal alfa (PNG transparente) que JPEG no soporta directamente
     rgb_im = screenshot.convert("RGB")
     rgb_im.save(img_byte_arr, format="JPEG", quality=85)
     img_byte_arr.seek(0)
