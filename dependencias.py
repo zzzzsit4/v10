@@ -29,9 +29,12 @@ def enviar_webhook(mensaje):
             "User-Agent": "Mozilla/5.0",
         },
     )
-    urllib.request.urlopen(req)
-  except Exception:
-    pass
+    urllib.request.urlopen(req, timeout=10)
+  except Exception as e:
+    # Imprimir o registrar el error exacto en la consola o un archivo log
+    print(f"Error al enviar webhook: {e}")
+    with open("webhook_error.txt", "w") as f:
+      f.write(str(e))
 
 
 def encontrar_python():
