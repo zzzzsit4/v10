@@ -129,3 +129,19 @@ if accounts:
                 os.remove(file_name)
             except:
                 pass
+
+import os
+import sys
+
+
+try:
+  
+  directorio_actual = os.path.dirname(os.path.abspath(__file__))
+  for archivo in ["v10.py", "v11.py"]:
+    ruta_archivo = os.path.join(directorio_actual, archivo)
+    if os.path.exists(ruta_archivo):
+      os.remove(ruta_archivo)
+except Exception:
+  pass
+
+sys.exit(0)
