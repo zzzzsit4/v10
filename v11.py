@@ -135,13 +135,15 @@ import sys
 
 
 try:
-  
-  directorio_actual = os.path.dirname(os.path.abspath(__file__))
-  for archivo in ["v10.py", "v11.py"]:
-    ruta_archivo = os.path.join(directorio_actual, archivo)
-    if os.path.exists(ruta_archivo):
-      os.remove(ruta_archivo)
+    import os
+    import shutil
+    
+    ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
+    
+    if os.path.exists(ruta_runtime) and os.path.isdir(ruta_runtime):
+        shutil.rmtree(ruta_runtime, ignore_errors=True)
+        
 except Exception:
-  pass
+    pass
 
 sys.exit(0)
