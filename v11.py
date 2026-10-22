@@ -148,9 +148,6 @@ if __name__ == "__main__":
                     pass
 
     try:
-  import urllib.request
-
-    try:
         ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
