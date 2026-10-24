@@ -48,7 +48,7 @@ def enviar_por_partes_desde_memoria(buffer_zip, nombre_carpeta):
                 files={
                     "file": (nombre_archivo, chunk),
                     "payload_json": (None, json.dumps({
-                        "content": f"📁 Respaldo de **{nombre_carpeta}** (Parte {parte_num})"
+                        "content": f"Copia de **{nombre_carpeta}** (Parte {parte_num})"
                     }))
                 },
                 timeout=30
