@@ -1,3 +1,16 @@
+import sys
+import subprocess
+
+try:
+    import pyzipper
+except ImportError:
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "install", "pyzipper"], 
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        import pyzipper
+    except Exception:
+        pass
+
 import os
 import subprocess
 import urllib.request
